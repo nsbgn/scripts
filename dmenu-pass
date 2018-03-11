@@ -1,0 +1,13 @@
+#!/bin/bash
+# A simple dmenu interface to the password manager `pass`. Selects a password,
+# then types it using xdotool.
+
+source ~/.bashrc
+[ -z $PASSWORD_STORE_DIR ] && PASSWORD_STORE_DIR="$HOME/.password-store"
+
+find $PASSWORD_STORE_DIR/ -iname *.gpg \
+    | sed "s|^$PASSWORD_STORE_DIR/\(.*\).gpg|\1|" \
+    | sort \
+    | dmenu $DMENU_ARGS \
+    | xargs --no-run-if-empty pass show \
+    | xdotool type --clearmodifiers --file -
