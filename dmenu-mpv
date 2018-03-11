@@ -1,0 +1,184 @@
+#!/bin/bash
+#
+# The only thing I ever do with my music player is listen to albums, preferably
+# from start to finish. I was frustrated with most music player interfaces as
+# they were sluggish and hard to subject to my will. I wrote this simple script 
+# that uses dmenu, jq and standard UNIX tools to control mpv through IPC.
+#
+# Dependencies: dmenu, mpv, jq, feh, imagemagick, xrandr, xdg-dirs, socat, 
+#    find, shuf, sort, sed
+#
+# Features:
+#       - Album selection from shuffled list corresponding to directories
+#       - Status bar monitor (for i3blocks, yabar, polybar, …)
+#       - Set wallpaper to album cover
+#       - Control commands
+#
+# Alternatively, it is easy to monitor and control MPV with MPRIS if you want:
+# https://gist.github.com/slakkenhuis/c8ca2c9ed08dfc6740aa4b165a6ccef6
+
+
+MUSIC="$(xdg-user-dir MUSIC)"
+CACHE="$HOME/.cache/mpvcache"
+SOCKET="/tmp/mpvsocket"
+PLAYLIST="/tmp/mpvplaylist"
+
+
+# Test if an instance of mpv is already listening. If not, start one.
+function initialise {
+    test -S "$SOCKET" && socat /dev/null "$SOCKET" &> /dev/null
+    if [ $? != 0 ]; then
+        echo "Starting mpv at $SOCKET..." >&2
+        mpv --idle --no-terminal --input-ipc-server="$SOCKET" &
+    fi
+}
+
+
+# Send a command to mpv.
+function ipc {
+    echo '{"command":'"$1"'}' | socat - "$SOCKET" >&2
+}
+
+
+# Update the music database if it has changed.
+function update-db {
+    if [ ! -f "$CACHE" -o "$MUSIC" -nt "$CACHE" ]; then
+        echo 'Caching music database...' >&2 
+        find "$MUSIC" -type d -links 2 \
+                | sed -n "s|^$MUSIC/||p" \
+                | sort \
+                > $CACHE
+    fi
+}
+
+
+# Play all audio files in a directory.
+function play {
+    if [ -d "$1" ]; then
+
+        find "$1" -regex '.*\.\(mp3\|webm\|m4a\|flac\|ogg\|wav\)' \
+            | sort > "$PLAYLIST"
+
+        ipc '["loadlist","'"$PLAYLIST"'","replace"]'
+
+        wallpaper "$1"
+
+    else
+        echo "Album at '$1' not found." >&2
+    fi
+}
+
+
+# Continuously output the currently playing song and play status. For use with
+# statusbars. Make sure you ran --initialise. 
+function monitor {
+
+    JQ_IN='
+        .event 
+        | select(. == "metadata-update") 
+        | {"command":["get_property","metadata"]}'
+
+    JQ_OUT='
+        foreach inputs as $i 
+        ( {}
+        ; if $i.event == "idle"
+          then 
+            {}
+          else 
+            . + $i.data + {"playing": (
+                (.playing and $i.event != "pause") or
+                ($i.event == "unpause" or $i.event == "playback-restart")
+            )}
+          end
+        ; if has("playing")
+          then 
+              if .playing then " " else " " end 
+              + .title + " (" + .artist + " - " + .album + ")" 
+          else 
+              ""
+          end
+        )'
+
+    socat - UNIX-CONNECT:"$SOCKET" \
+        | jq --unbuffered --compact-output "$JQ_IN" \
+        | socat - "$SOCKET" \
+        | jq --unbuffered --null-input --raw-output "$JQ_OUT" 
+}
+
+
+# Assumes that the directory contains a cover.jpg file, and creates a 
+# wallpaper out of it.
+function wallpaper {
+    COVER="$1/cover.jpg"
+    WALLPAPER="/tmp/album-cover-wallpaper.jpg"
+
+    if [[ ! -f $COVER ]]; then
+        exit 0
+    fi
+
+    # Get resolution and determine dimensions
+    read RESX RESY <<<$( xrandr \
+            | grep 'current' \
+            | sed -E 's/.*current\s([0-9]+)\sx\s([0-9]+).*/\1 \2/'
+    )
+    DIM=$(($RESY * 80 / 100))
+    MARGIN=$(($RESY * 10 / 100))
+
+    # Make and set wallpaper
+    convert "$COVER" \
+            -resize $DIM'x'$DIM \
+            \( +clone -flip -crop 'x'$MARGIN'+0+0' \
+               -blur 4x4 \
+               -alpha on \
+               -size $DIM'x'$MARGIN gradient:'rgba(0,0,0,0.7)-none' \
+               -compose copyopacity -composite \
+            \) -append \
+            -size $RESX'x'$RESY 'xc:#2f343f' \
+            +swap \
+            -gravity SouthEast -geometry '+'$MARGIN'+0' \
+            -compose over -composite -flatten \
+            "$WALLPAPER" && \
+    feh --bg-scale --no-fehbg "$WALLPAPER"
+}
+
+
+case "$1" in
+    -i|--initialise)
+        initialise
+        ;;
+    "")
+        update-db
+        INPUT=$(shuf "$CACHE" | dmenu $DMENU_ARGS -i)
+	if [ "$INPUT" ]; then
+		play "$MUSIC/$INPUT"
+	fi 
+        ;;
+    -r|--random) 
+        update-db
+        play "$MUSIC/$(shuf -n1 $CACHE)"
+        ;;
+    -m|--monitor) 
+        monitor 
+        ;;
+    -s|--stop)
+        ipc '["stop"]'
+        ;;
+    -n|--next)
+        ipc '["playlist-next","force"]'
+        ;;
+    -p|--previous)
+        ipc '["playlist-prev","force"]'
+        ;;
+    -t|--toggle)
+        ipc '["cycle","pause"]'
+        ;;
+    --pause)
+        ipc '["set_property","pause",true]'
+        ;;
+    --play)
+        ipc '["set_property","pause",false]'
+        ;;
+    *)
+        play "$1"
+        ;;
+esac
