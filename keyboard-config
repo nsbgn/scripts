@@ -1,0 +1,77 @@
+#!/bin/bash
+#
+# I have found that the usability of a keyboard increases immensely with the
+# following settings: 
+#
+# 1. Keeping CapsLock pressed turns it into a Super modifier. I use this key 
+#    to control my window manager.
+# 2. Tapping CapsLock triggers Escape. This is useful for vim-style
+#    keybindings.
+# 3. Right Alt is set to the Compose key. This way, you would type special
+#    characters by typing intuitive keys in succession (e.g. RAlt+'+e → é).
+# 4. Shift + Right Alt is set to the Greek key (e.g. Shift+RAlt+f → φ).
+# 5. Keeping Tab pressed makes it act like a mode switch, which allows me use
+#    specific keys (like the cursor keys) without putting my hands in awkward
+#    positions. I view it as a compatibility key of sorts, for applications 
+#    that don't have vim-like keys. Again, simply tapping Tab will maintain 
+#    the original effect.
+#
+# The first three are easy to achieve with `setxkbmap -option compose:ralt 
+# -option caps:super` and `xcape -e Super_L=Escape`. For the others, we will 
+# make a custom keymap. I would like to find a better way, as switching 
+# keyboard layouts messes it up.
+#
+# Thanks for inspiration to:
+# - https://www.charvolant.org/doug/xkb/
+# - https://github.com/alols/xcape
+# - https://github.com/altercation/dotfiles-tilingwm
+
+#export DISPLAY=:0
+XKBDIR=/tmp/xkb
+[ -d ${XKBDIR} ] || mkdir -p ${XKBDIR}/{keymap,symbols,types}
+
+# Generate a basic keymap.
+setxkbmap -option -option caps:super -print \
+    | sed 's/\(\s*xkb_symbols\s*{\s*include\s*".*\)\("\s*};\s*\)/\1+custom(tab)+custom(special)\2/g' \
+    > ${XKBDIR}/keymap/custom.xkb
+
+# Add customisations to its `xkb_symbols`. We assign Tab to some weird key so
+# that `xcape` won't get confused. We use the ISO_Level3_Shift key for mode
+# switching, because we can then just add our special keys as level 3 syms.
+cat > ${XKBDIR}/symbols/custom << EOF
+default partial modifier_keys
+xkb_symbols "tab" {
+    key  <TAB> { [ ISO_Level3_Shift, Mode_switch ] };
+    key <I252> { [ Tab,	ISO_Left_Tab ] }; 
+};
+
+partial
+xkb_symbols "special" {
+    key <AC03>	{ [d,           D,              Delete ]};
+    key <AD06>	{ [y,           Y,              XF86Copy ]};
+    key <AD10>	{ [p,           P,              XF86Paste ]};
+
+    key <AD11>	{ [bracketleft, braceleft,      Prior ]};
+    key <AD12>	{ [bracketright,braceright,     Next ]};
+    key <AB08>	{ [comma,       less,           Home ]};
+    key <AB09>	{ [period,      greater,        End ]};
+
+    key <AC06>	{ [h,           H,              Left ]};
+    key <AC07>	{ [j,           J,              Down ]};
+    key <AC08>	{ [k,           K,              Up ]};
+    key <AC09>	{ [l,           L,              Right ]};
+    key <AC10>	{ [semicolon,   colon,          asciitilde ]};
+    key <AC11>	{ [apostrophe,  quotedbl,       grave ]	};
+
+    key <RALT>  { [Multi_key,   dead_greek ] };
+
+};
+EOF
+
+# Compile the new xkbmap
+xkbcomp -synch -w3 -I${XKBDIR} ${XKBDIR}/keymap/custom.xkb ${DISPLAY}
+
+# (Re)start xcape, to make sure we can still use the original keys by tapping
+# the respective modifiers.
+killall -q -e xcape
+xcape -e 'Super_L=Escape;ISO_Level3_Shift=Tab' -t 150ms
