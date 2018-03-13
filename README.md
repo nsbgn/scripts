@@ -12,3 +12,4 @@ Currently the repository contains:
   [mpv](https://mpv.io/), as a DIY music player.
 - A dmenu interface to [pass](http://www.zx2c4.com/projects/password-store/), 
   as a simple password manager.
+- A simple `dmenu` query for confirmation.
