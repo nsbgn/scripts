@@ -60,6 +60,7 @@ function play {
             | sort > "$PLAYLIST"
 
         ipc '["loadlist","'"$PLAYLIST"'","replace"]'
+        ipc '["set_property","pause",false]'
 
         wallpaper "$1"
 
