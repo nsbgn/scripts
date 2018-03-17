@@ -1,0 +1,27 @@
+#!/bin/bash
+# Toggles whether the mouse is enabled or not. I keep the mouse disabled unless
+# I need it, so that I don't need to worry about brushing the touchpad. Use in
+# combination with unclutter to also hide the mouse.
+#
+# For the polybar indicator, use the following module:
+# [module/mouselock]
+# type = custom/ipc
+# hook-0 = echo ""
+# hook-1 = echo ""
+# initial = 1
+
+for ID in $(xinput list | sed -n 's/.*id=\([0-9]*\).*pointer.*/\1/pg'); do
+
+    STATE=$(xinput list-props $ID | grep -i 'Device Enabled' | cut -d':' -f2-)
+
+    if [ $STATE -eq 1 ]; then
+        #xdotool mousemove 1920 0
+        xinput --disable $ID
+        polybar-msg hook mouselock 0
+    else
+        xinput --enable $ID
+        polybar-msg hook mouselock 1
+    fi
+
+done 
+
