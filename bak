@@ -1,0 +1,81 @@
+#!/bin/bash
+# I use this script to keep my files synchronised.
+
+[ -z $LOCAL ]   && LOCAL="$HOME"
+[ -z $REMOTE ]  && REMOTE="/media/nail"
+[ -z $TARGETS ] && TARGETS="projects notes mail"
+
+TARGETS=( $TARGETS )
+
+OPTS=(
+    --archive 
+    --progress
+    --delete
+    --exclude .Trash-1000
+    --exclude lost+found
+    --filter='dir-merge,- .gitignore'
+    )
+
+
+# Rsync that does a dry run first and asks for confirmation.
+function rsync-confirm {
+    if ! mountpoint -q "$REMOTE"; then
+        echo "\"$REMOTE\" is not a mount point"
+        exit 1
+    fi
+    echo rsync "$@"
+    rsync --dry-run "$@"
+    read -r -p "Are you sure? [y/N] " confirmation
+    case $confirmation in
+        [yY][eE][sS]|[yY])
+            rsync "$@"
+            ;;
+        *)
+            exit 0
+            ;;
+    esac
+}
+
+
+if [ $# -eq 0 ]; then # are there arguments?
+cat >&1 << EOF
+Usage: bak [-i|--pull] [-o|--push]
+
+    Makes backups using rsync.
+EOF
+else
+    for arg in "$@"; do
+    case $arg in
+        -i|--pull)
+            rsync-confirm \
+                "${OPTS[@]}" \
+                "${TARGETS[@]/#/$REMOTE/}" \
+                "$LOCAL/"
+            sync
+            shift
+        ;;
+        -o|--push)
+            rsync-confirm \
+                "${OPTS[@]}" \
+                "${TARGETS[@]/#/$LOCAL/}" \
+                "$REMOTE/"
+            sync
+            shift
+        ;;
+        *)
+        echo "Unknown command line argument."
+        exit 1
+        ;;
+    esac
+    done
+fi
+
+# This is a work-in-progress.
+# The idea is to first skip files that are newer on the receiver, then report
+# which files were skipped and whether or not you want to replace them, too.
+#function summary {
+# diff 
+#    <(rsync --dry-run --itemize-changes          "${OPTS[@]}" "${LOCAL}" "${REMOTE}") 
+#    <(rsync --dry-run --itemize-changes --update "${OPTS[@]}" "${LOCAL}" "${REMOTE}") 
+#}
+
