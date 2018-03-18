@@ -1,0 +1,16 @@
+#!/bin/bash
+# Use a JSON file to construct a dmenu menu. Example:
+# dmenu-json menu/system.json
+
+if [ -f "$1" ]; then
+    jq \
+        --raw-output \
+        --arg sel "$( jq -r '.[].entry' < "$1" | \
+                      dmenu $DMENU_ARGS )" \
+        '.[] | select (.entry == $sel) | .command' \
+        < "$1" | \
+        sh
+else
+    exit 1
+fi
+

@@ -1,0 +1,12 @@
+[   { "entry": "reload"
+    , "command": "i3-msg restart" }
+,   { "entry": "log out"
+    , "command": "i3-msg exit" }
+,   { "entry": "reboot"
+    , "command": "dbus-send --system --print-reply --dest=org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager.Reboot boolean:true" }
+,   { "entry": "suspend"
+    , "command": "dbus-send --system --print-reply --dest=org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager.Suspend boolean:true" }
+,   { "entry": "shut down"
+    , "command": "dbus-send --system --print-reply --dest=org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager.PowerOff boolean:true" }
+]
+
