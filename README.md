@@ -12,8 +12,9 @@ Currently the repository contains:
   [mpv](https://mpv.io/), as a DIY music player.
 - A dmenu interface to [pass](http://www.zx2c4.com/projects/password-store/), 
   as a simple password manager.
+- A dmenu interface to [dict](https://sourceforge.net/projects/dict/).
 - A script to construct dmenus with JSON files, using 
   [jq](https://stedolan.github.io/jq/).
 - A simple dmenu query for confirmation.
-- A script to disable and re-enable the mouse pointer.
 - A script to keep my files backed up using [rsync](https://rsync.samba.org/).
+- A script to disable and re-enable the mouse pointer.

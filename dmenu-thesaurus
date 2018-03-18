@@ -1,0 +1,18 @@
+#!/bin/bash
+# Quick thesaurus using dmenu, for quick lookup of words that are at the tip 
+# of the tongue
+
+WORDS=""
+
+while
+    WORDS=$(echo -n "$WORDS" | \
+        dmenu -p "Thesaurus:" $DMENU_ARGS | \
+        xargs --no-run-if-empty dict -f -d moby-thesaurus | \
+        tail '+4' | \
+        tr ',' '\n' | \
+        sed -n 's/^ *\([A-Za-z]\+\)/\1/p')
+    test "$WORDS"
+do 
+    :
+done
+
