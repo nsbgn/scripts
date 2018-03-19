@@ -5,7 +5,7 @@
 source ~/.bashrc
 [ -z $PASSWORD_STORE_DIR ] && PASSWORD_STORE_DIR="$HOME/.password-store"
 
-find $PASSWORD_STORE_DIR/ -iname *.gpg \
+find $PASSWORD_STORE_DIR/ -iname '*.gpg' \
     | sed "s|^$PASSWORD_STORE_DIR/\(.*\).gpg|\1|" \
     | sort \
     | dmenu -p "Account:" $DMENU_ARGS \
