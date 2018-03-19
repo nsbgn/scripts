@@ -3,7 +3,7 @@
 
 [ -z $LOCAL ]   && LOCAL="$HOME"
 [ -z $REMOTE ]  && REMOTE="/media/nail"
-[ -z $TARGETS ] && TARGETS="projects notes mail"
+[ -z $TARGETS ] && TARGETS="projects notes mail .gnupg .task .password-store"
 
 TARGETS=( $TARGETS )
 

@@ -149,7 +149,7 @@ case "$1" in
         ;;
     "")
         update-db
-        INPUT=$(shuf "$CACHE" | dmenu $DMENU_ARGS -i)
+        INPUT=$(shuf "$CACHE" | dmenu -p "Album:" $DMENU_ARGS -i)
 	if [ "$INPUT" ]; then
 		play "$MUSIC/$INPUT"
 	fi 

@@ -1,17 +1,22 @@
 #!/bin/bash
-# Quick thesaurus using dmenu, for quick lookup of words that are at the tip 
-# of the tongue
+# Quick thesaurus using dmenu. Just loop through related words until you find
+# the one that was at the tip of your tongue.
+#
+# I used to use the following bash script, instead of `thesaurus`. I would like
+# to get an offline thesaurus, somehow, too.
+#
+# dict -f -d moby-thesaurus $1 | \
+#        tail '+4' | \
+#        tr ',' '\n' | \
+#        sed -n 's/^ *\([A-Za-z]\+\)/\1/p'
 
-WORDS=""
+OUTPUT=""
 
 while
-    WORDS=$(echo -n "$WORDS" | \
+    OUTPUT=$(echo -n "$OUTPUT" | \
         dmenu -p "Thesaurus:" $DMENU_ARGS | \
-        xargs --no-run-if-empty dict -f -d moby-thesaurus | \
-        tail '+4' | \
-        tr ',' '\n' | \
-        sed -n 's/^ *\([A-Za-z]\+\)/\1/p')
-    test "$WORDS"
+        xargs --no-run-if-empty thesaurus)
+    test "$OUTPUT"
 do 
     :
 done
