@@ -16,6 +16,18 @@ OPTS=(
     --filter='dir-merge,- .gitignore'
     )
 
+# Use `sudo blkid` to find out UUIDs
+UUIDS='
+{ "/media/toe":"79c11d5f-25a1-4129-a63c-970a21727f65" 
+, "/media/nail":"86770942-bbbd-4e0c-9925-82cf80d14474" }'
+
+
+function mountremote {
+    echo "$UUIDS" \
+        | jq --raw-output --exit-status --arg mp "$REMOTE" '.[$mp] // empty' \
+        | xargs -I{} pmount /dev/disk/by-uuid/{} "$REMOTE"
+}
+
 
 # Rsync that does a dry run first and asks for confirmation.
 function rsync-confirm {
@@ -39,7 +51,7 @@ function rsync-confirm {
 
 if [ $# -eq 0 ]; then # are there arguments?
 cat >&1 << EOF
-Usage: bak [-i|--pull] [-o|--push]
+Usage: bak [-i|--pull] [-o|--push] [-m|--mount] [-u|--umount]
 
     Makes backups using rsync.
 EOF
@@ -61,6 +73,12 @@ else
                 "$REMOTE/"
             sync
             shift
+        ;;
+        -m|--mount)
+            mountremote
+        ;;
+        -u|--umount)
+            pumount "$REMOTE"
         ;;
         *)
         echo "Unknown command line argument."
