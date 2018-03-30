@@ -1,38 +1,65 @@
 #!/bin/bash
-# I use this script to keep my files synchronised.
+# I use rsync to keep my files synchronised across various devices --- through
+# SSH, to SD cards, etcetera. I keep a JSON file to keep this organised. It
+# might seem a bit roundabout, but it feels comfier to me than a bare shell
+# script. This script will also mount the required devices (use `sudo blkid` 
+# to find out UUIDs).
+#
+# For example, the ~/.bak.json might look like this:
+#
+# [ { "id": "mp3"
+#   , "note": "For a hardware MP3 player using FAT32. I use fatsort to keep it sorted."
+#   , "mount": { "dir":"/media/mp3", "uuid":"18a3c1b4-4cde-49dd-a4f7-bbf55f72a318" }
+#   , "local": "~/data/audio/music"
+#   , "remote": "/media/mp3/Music"
+#   , "arguments": 
+#       [ "-rltD", "--modify-window=1", "--size-only", "--include=*.mp3"
+#       , "--include=folder.jpg", "--include=*/", "--exclude=*"
+#       ]
+#   } ]
+#
+# Dependencies: rsync, pmount, fatsort, jq
 
-[ -z $LOCAL ]   && LOCAL="$HOME"
-[ -z $REMOTE ]  && REMOTE="/media/nail"
-[ -z $TARGETS ] && TARGETS="projects notes mail .gnupg .task .password-store"
-
-TARGETS=( $TARGETS )
-
-OPTS=(
-    --archive 
-    --progress
-    --delete
-    --exclude .Trash-1000
-    --exclude lost+found
-    --filter='dir-merge,- .gitignore'
-    )
-
-# Use `sudo blkid` to find out UUIDs
-UUIDS='
-{ "/media/toe":"79c11d5f-25a1-4129-a63c-970a21727f65" 
-, "/media/nail":"86770942-bbbd-4e0c-9925-82cf80d14474" }'
-
-
-function mountremote {
-    echo "$UUIDS" \
-        | jq --raw-output --exit-status --arg mp "$REMOTE" '.[$mp] // empty' \
-        | xargs -I{} pmount /dev/disk/by-uuid/{} "$REMOTE"
-}
+# Location of configuration file
+CONFIG="$HOME/.bak.json"
 
 
-# Rsync that does a dry run first and asks for confirmation.
+# Obtain configuration (set TARGET environment variable accordingly; otherwise
+# the first is used)
+JSON="$( jq \
+    --arg entry "$TARGET" \
+    'if $entry == "" then .[0] else .[] | select(.id == $entry) end' \
+    < "$CONFIG")"
+
+if ! [ "$JSON" ]; then
+    echo "Backup target \"$TARGET\" was not found."
+    exit 1
+fi
+
+
+# Set relevant variables from configuration
+read -r LOCAL REMOTE MOUNT UUID < <(echo "$JSON" | jq -r '[.local,.remote,.mount.dir//empty,.mount.uuid//empty] | @tsv')
+readarray -t FILES < <(echo "$JSON" | jq -r '.files // empty | .[]')
+readarray -t OPTS < <(echo "$JSON" | jq -r '.arguments // empty | .[]')
+
+
+# If there are no target files, there should still be something synchronised,
+# namely, the directories themselves
+if [ ${#FILES[@]} -eq 0 ]; then
+    FILES=( "" )
+fi
+
+
+# Expand tildes
+LOCAL="${LOCAL/#\~/$HOME}"
+REMOTE="${REMOTE/#\~/$HOME}"
+MOUNT="${MOUNT/#\~/$HOME}"
+
+
+# Do a dry run first, then asks for confirmation before rsyncing
 function rsync-confirm {
-    if ! mountpoint -q "$REMOTE"; then
-        echo "\"$REMOTE\" is not a mount point"
+    if ! [ "$MOUNT" ] || ! mountpoint -q "$MOUNT"; then
+        echo "\"$MOUNT\" is not a mount point."
         exit 1
     fi
     echo rsync "$@"
@@ -49,44 +76,34 @@ function rsync-confirm {
 }
 
 
-if [ $# -eq 0 ]; then # are there arguments?
-cat >&1 << EOF
-Usage: bak [-i|--pull] [-o|--push] [-m|--mount] [-u|--umount]
-
-    Makes backups using rsync.
-EOF
-else
-    for arg in "$@"; do
+for arg in "$@"; do
     case $arg in
         -i|--pull)
-            rsync-confirm \
+            rsync-confirm --progress \
                 "${OPTS[@]}" \
-                "${TARGETS[@]/#/$REMOTE/}" \
+                "${FILES[@]/#/$REMOTE/}" \
                 "$LOCAL/"
             sync
-            shift
         ;;
         -o|--push)
-            rsync-confirm \
+            rsync-confirm --progress \
                 "${OPTS[@]}" \
-                "${TARGETS[@]/#/$LOCAL/}" \
+                "${FILES[@]/#/$LOCAL/}" \
                 "$REMOTE/"
             sync
-            shift
         ;;
         -m|--mount)
-            mountremote
+            pmount /dev/disk/by-uuid/"$UUID" "$MOUNT"
         ;;
         -u|--umount)
-            pumount "$REMOTE"
+            pumount "$MOUNT"
         ;;
         *)
         echo "Unknown command line argument."
         exit 1
         ;;
     esac
-    done
-fi
+done
 
 # This is a work-in-progress.
 # The idea is to first skip files that are newer on the receiver, then report
