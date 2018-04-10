@@ -17,7 +17,6 @@ Currently, the repository contains the following dmenu-based tools:
   manager.
 - [dmenu-json](dmenu-json): A script to construct dmenus with submenus defined 
   in JSON.
-- [dmenu-thesaurus](dmenu-thesaurus): Presents a list of related words.
 
 Other than that, I have:
 
@@ -27,5 +26,6 @@ Other than that, I have:
   [xcape](https://github.com/alols/xcape). 
 - [toggle-pointer](toggle-pointer): A script to disable and re-enable the 
   mouse pointer.
+- [thesaurus](thesaurus): Presents a list of related words.
 - [bak](bak): A script to keep my files backed up using 
   [rsync](https://rsync.samba.org/).

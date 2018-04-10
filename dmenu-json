@@ -2,22 +2,36 @@
 # Construct a dmenu with submenus using JSON. 
 #
 # Example:
-# echo '[{"title":"hello","body":[{"title":"world","body":"echo test"}]}]' | dmenu-json
+# echo '{"prompt":"Pick:","entries":[{"id":"Option A","command":"echo A"},{"id":"Option B","command":"echo B"}]}' | dmenu-json
 
 # Get menu JSON from command line arguments or stdin
 JSON="$(cat "$@")"
 
 # Keep going deeper until we can't
 while 
-    test "$JSON" && OPTIONS="$(echo "$JSON" | \
-        jq --raw-output --exit-status '.[]?.title')"
+    PROMPT=$(echo "$JSON" | jq -r '.prompt // "Choose:"')
+    test "$JSON" && OPTIONS=$(echo "$JSON" | jq -r --exit-status '.entries[].id' 2> /dev/null)
 do
-    SELECT="$(echo "$OPTIONS" | \
-        dmenu -p "Menu:" $DMENU_ARGS)"
-    JSON="$(echo "$JSON" | \
-        jq --arg s "$SELECT" '.[] | select(.title==$s) | .body // empty')"
+    SELECT=$(echo "$OPTIONS" | dmenu -p "$PROMPT" $DMENU_ARGS)
+    JSON=$(echo "$JSON" | jq --arg s "$SELECT" '.entries[] | select(.id==$s) // empty')
 done
 
-# Feed whatever is left to the shell
-echo "$JSON" | jq --raw-output '.' | sh
+# The resulting object should have a command to feed to the shell
+if test "$JSON" && COMMAND=$(echo "$JSON" | jq -r --exit-status '.command'); then
 
+    # Feed that command to the shell, and perhaps repeatedly feed the output of the 
+    # command back to another dmenu
+    echo "$JSON" | jq --exit-status '.loop?' > /dev/null
+    if [ $? == 0 ]; then
+        while
+            OUTPUT=$(echo -n "$OUTPUT" | \
+                dmenu -p "$PROMPT" $DMENU_ARGS | \
+                xargs --no-run-if-empty "$COMMAND")
+            test "$OUTPUT"
+        do 
+            :
+        done
+    else
+        echo "$COMMAND" | sh
+    fi
+fi
