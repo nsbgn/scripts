@@ -11,7 +11,6 @@
 # Features:
 #       - Album selection from shuffled list corresponding to directories
 #       - Status bar monitor (for i3blocks, yabar, polybar, …)
-#       - Set wallpaper to album cover
 #       - Control commands
 #
 # Alternatively, it is easy to monitor and control MPV with MPRIS if you want:
@@ -103,45 +102,16 @@ function monitor {
     socat - UNIX-CONNECT:"$SOCKET" \
         | jq --unbuffered --compact-output "$JQ_IN" \
         | socat - "$SOCKET" \
-        | jq --unbuffered --null-input --raw-output "$JQ_OUT" 
+        | jq --unbuffered --null-input --raw-output "$JQ_OUT" \
+        | sed --unbuffered -E 's/(.{75})(.{1,})$/\1…/'
 }
 
 
-# Assumes that the directory contains a cover.jpg file, and creates a 
-# wallpaper out of it.
-function wallpaper {
-    COVER="$1/cover.jpg"
-    WALLPAPER="/tmp/album-cover-wallpaper.jpg"
-
-    if [[ ! -f $COVER ]]; then
-        exit 0
-    fi
-
-    # Get resolution and determine dimensions
-    read RESX RESY <<<$( xrandr \
-            | grep 'current' \
-            | sed -E 's/.*current\s([0-9]+)\sx\s([0-9]+).*/\1 \2/'
-    )
-    DIM=$(($RESY * 80 / 100))
-    MARGIN=$(($RESY * 10 / 100))
-
-    # Make and set wallpaper
-    convert "$COVER" \
-            -resize $DIM'x'$DIM \
-            \( +clone -flip -crop 'x'$MARGIN'+0+0' \
-               -blur 4x4 \
-               -alpha on \
-               -size $DIM'x'$MARGIN gradient:'rgba(0,0,0,0.7)-none' \
-               -compose copyopacity -composite \
-            \) -append \
-            -size $RESX'x'$RESY 'xc:#2f343f' \
-            +swap \
-            -gravity SouthEast -geometry '+'$MARGIN'+0' \
-            -compose over -composite -flatten \
-            "$WALLPAPER" && \
-    feh --bg-scale --no-fehbg "$WALLPAPER"
+# Show the cover.jpg file.
+function cover {
+    COVER="$(echo '{"command":["get_property","path"]}' | socat - /tmp/mpvsocket | jq -r '.data' | xargs -0 dirname)/cover.jpg"
+    feh  --image-bg '#2f343f' --auto-zoom --info "echo $COVER" --fullscreen "$COVER"
 }
-
 
 case "$1" in
     -i|--initialise)
@@ -157,6 +127,9 @@ case "$1" in
     -r|--random) 
         update-db
         play "$MUSIC/$(shuf -n1 $CACHE)"
+        ;;
+    -c|--cover)
+        cover
         ;;
     -m|--monitor) 
         monitor 
