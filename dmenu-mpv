@@ -10,7 +10,7 @@
 #
 # Features:
 #       - Album selection from shuffled list corresponding to directories
-#       - Status bar monitor (for i3blocks, yabar, polybar, …)
+#       - Status bar monitor (for i3blocks, yabar, polybar, tint2, …)
 #       - Control commands
 #
 # Alternatively, it is easy to monitor and control MPV with MPRIS if you want:
@@ -60,8 +60,6 @@ function play {
 
         ipc '["loadlist","'"$PLAYLIST"'","replace"]'
         ipc '["set_property","pause",false]'
-
-        wallpaper "$1"
 
     else
         echo "Album at '$1' not found." >&2

@@ -58,7 +58,7 @@ MOUNT="${MOUNT/#\~/$HOME}"
 
 # Do a dry run first, then asks for confirmation before rsyncing
 function rsync-confirm {
-    if ! [ "$MOUNT" ] || ! mountpoint -q "$MOUNT"; then
+    if [ "$MOUNT" ] && ! mountpoint -q "$MOUNT"; then
         echo "\"$MOUNT\" is not a mount point."
         exit 1
     fi
