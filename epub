@@ -1,0 +1,40 @@
+#!/bin/bash
+# Just a quick EPUB reader for the terminal.
+#
+# I couldn't find a good shell tool for navigating XML, so I just convert it to
+# JSON using https://github.com/sinelaw/xml-to-json-fast
+
+FILE="$1"
+
+if [ ! "$FILE" ]; then
+    echo "No file provided." >&2
+    exit 1
+fi
+
+# Find out where the content.ops file may be stored
+for OPS in "OEBPS" "OPS" "ops" "oebps" "Ops" "Oebps" ""; do
+    if zipinfo -t "$FILE" "$OPS/*" > /dev/null 2>/dev/null; then
+        PREFIX="$OPS/"
+        break
+    fi
+done
+
+# Get ordered list of EPUB HTML file contents
+readarray -t CHAPTERS < <(unzip -p "$FILE" "${PREFIX}content.opf" \
+    | xml-to-json-fast \
+    | jq -r '. as $opf 
+        | .items[] 
+        | select(.name=="opf:spine" or .name=="spine") 
+        | .items[].attrs.idref as $idref
+        | ($opf.items[] 
+            | select(.name=="opf:manifest" or .name=="manifest") 
+            | .items[].attrs
+            | select(.id == $idref)
+            | .href)'
+    )
+
+# Unzip and feed files to text browser
+for CHAPTER in "${CHAPTERS[@]/#/"$PREFIX"}"; do
+    unzip -p "$FILE" "$CHAPTER"
+done | w3m -T "text/html"
+
