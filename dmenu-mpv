@@ -5,8 +5,8 @@
 # they were sluggish and hard to subject to my will. I wrote this simple script 
 # that uses dmenu, jq and standard UNIX tools to control mpv through IPC.
 #
-# Dependencies: dmenu, mpv, jq, feh, imagemagick, xrandr, xdg-dirs, socat, 
-#    find, shuf, sort, sed
+# Dependencies: 
+#       dmenu, mpv, jq, feh, xdg-dirs, socat, find, shuf, sort, sed
 #
 # Features:
 #       - Album selection from shuffled list corresponding to directories
