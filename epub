@@ -12,9 +12,9 @@ if [ ! "$FILE" ]; then
 fi
 
 # Find out where the content.ops file may be stored
-for OPS in "OEBPS" "OPS" "ops" "oebps" "Ops" "Oebps" ""; do
-    if zipinfo -t "$FILE" "$OPS/*" > /dev/null 2>/dev/null; then
-        PREFIX="$OPS/"
+for OPS in "OEBPS/" "OPS/" "ops/" "oebps/" "Ops/" "Oebps/" ""; do
+    if zipinfo -t "$FILE" "$OPS*" > /dev/null 2>/dev/null; then
+        PREFIX="$OPS"
         break
     fi
 done

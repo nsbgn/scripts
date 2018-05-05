@@ -8,7 +8,8 @@
 # 2. Tapping CapsLock triggers Escape. This is useful for vim-style
 #    keybindings.
 # 3. Right Alt is set to the Compose key. This way, you would type special
-#    characters by typing intuitive keys in succession (e.g. RAlt+'+e → é).
+#    characters by typing intuitive keys in succession (e.g. RAlt+'+e → é). See
+#    the [compose table](https://help.ubuntu.com/community/GtkComposeTable).
 # 4. Shift + Right Alt is set to the Greek key (e.g. Shift+RAlt+f → φ).
 # 5. Keeping Tab pressed makes it act like a mode switch, which allows me use
 #    specific keys (like the cursor keys) without putting my hands in awkward
