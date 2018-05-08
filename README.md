@@ -28,5 +28,7 @@ Other than that, I have:
   mouse pointer.
 - [epub](epub): A very simple epub reader for the terminal.
 - [thesaurus](thesaurus): Presents a list of related words.
+- [sunlight](sunlight): Calculates when the sun will rise and set using 
+  [Sunwait](http://www.risacher.org/sunwait/).
 - [bak](bak): A script to keep my files backed up using 
   [rsync](https://rsync.samba.org/).
