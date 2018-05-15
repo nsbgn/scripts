@@ -1,10 +1,22 @@
 #!/bin/bash
 # Uses http://www.risacher.org/sunwait/ to calculate when the sun will rise and
-# set. Would like to use geoclue2 instead to find lat/lon coords, but this will do.
+# set. Hacky.
 
-curl -s https://ipapi.co/json \
-    | jq -r \
-        '[(.latitude  | if . > 0 then (.|tostring)+"N" else (.*-1|tostring)+"S" end)
-         ,(.longitude | if . > 0 then (.|tostring)+"W" else (.*-1|tostring)+"E" end)] | .[]' \
-    | xargs sunwait -p \
+readarray -t COORDS < <(/lib/geoclue2/geoclue-2.0/demos/where-am-i -t 1 | sed -n 's/.*itude:\s\+\(.*\)°/\1/p')
+
+LAT="${COORDS[0]}"
+if (( $(bc <<< "$LAT>0") )); then
+    LAT="${LAT}N"
+else
+    LAT="$(echo "$LAT*-1" | bc)S"
+fi
+
+LON="${COORDS[1]}"
+if (( $(bc <<< "$LON>0") )); then
+    LON="${LON}W"
+else
+    LON="$(echo "$LON*-1" | bc)E"
+fi
+
+sunwait -p $LAT $LON \
     | sed -n 's/\s*Sun rises \([0-9][0-9]\)\([0-9][0-9]\)[^0-9]*\([0-9][0-9]\)\([0-9][0-9]\).*/ \1:\2-\3:\4/p'
