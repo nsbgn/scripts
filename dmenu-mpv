@@ -17,7 +17,7 @@
 # https://gist.github.com/slakkenhuis/c8ca2c9ed08dfc6740aa4b165a6ccef6
 
 
-MUSIC="$(xdg-user-dir MUSIC)"
+MUSIC="$(xdg-user-dir MUSIC | xargs realpath)"
 CACHE="$HOME/.cache/mpvcache"
 SOCKET="/tmp/mpvsocket"
 PLAYLIST="/tmp/mpvplaylist"
