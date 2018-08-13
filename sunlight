@@ -2,21 +2,22 @@
 # Uses http://www.risacher.org/sunwait/ to calculate when the sun will rise and
 # set. Hacky.
 
-readarray -t COORDS < <(/lib/geoclue2/geoclue-2.0/demos/where-am-i -t 1 | sed -n 's/.*itude:\s\+\(.*\)°/\1/p')
+readarray -t COORDS < <(/usr/lib/geoclue-2.0/demos/where-am-i -t 2 | sed -n 's/.*itude:\s\+\(.*\)°/\1/p')
+
+[ $COORDS ] || exit 1
 
 LAT="${COORDS[0]}"
-if (( $(bc <<< "$LAT>0") )); then
+if (( $(bc <<< "$LAT > 0") )); then
     LAT="${LAT}N"
 else
-    LAT="$(echo "$LAT*-1" | bc)S"
+    LAT="$(bc <<< "$LAT * -1")S"
 fi
 
 LON="${COORDS[1]}"
-if (( $(bc <<< "$LON>0") )); then
+if (( $(bc <<< "$LON > 0") )); then
     LON="${LON}W"
 else
-    LON="$(echo "$LON*-1" | bc)E"
+    LON="$(bc <<< "$LON * -1")E"
 fi
 
-sunwait -p $LAT $LON \
-    | sed -n 's/\s*Sun rises \([0-9][0-9]\)\([0-9][0-9]\)[^0-9]*\([0-9][0-9]\)\([0-9][0-9]\).*/ \1:\2-\3:\4/p'
+sunwait -p $LAT $LON 

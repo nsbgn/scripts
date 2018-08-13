@@ -101,7 +101,7 @@ function monitor {
         | jq --unbuffered --compact-output "$JQ_IN" \
         | socat - "$SOCKET" \
         | jq --unbuffered --null-input --raw-output "$JQ_OUT" \
-        | sed --unbuffered -E 's/(.{75})(.{1,})$/\1…/'
+        | sed --unbuffered -E 's/(.{50})(.{1,})$/\1…/'
 }
 
 

@@ -16,7 +16,7 @@ for ID in $(xinput list | sed -n 's/.*id=\([0-9]*\).*pointer.*/\1/pg'); do
     STATE=$(xinput list-props $ID | grep -i 'Device Enabled' | cut -d':' -f2-)
 
     if [ $STATE -eq 1 ]; then
-        xdotool mousemove 1920 0
+        #xdotool mousemove 1920 0
         xinput --disable $ID
         polybar-msg hook mouselock 1
     else
