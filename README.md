@@ -32,3 +32,5 @@ Other than that, I have:
   [Sunwait](http://www.risacher.org/sunwait/).
 - [bak](bak): A script to keep my files backed up using 
   [rsync](https://rsync.samba.org/).
+- [preview](preview): A script to show a text preview of a text or binary 
+  file. I use this with the [lf](https://github.com/gokcehan/lf) file manager.
