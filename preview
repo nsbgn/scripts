@@ -12,10 +12,10 @@ case "$EXT" in
     rar) unrar lt -p- -- "$FILE";;
     7z) 7z l -p -- "$FILE";;
     htm|html|xhtml) elinks -dump "$FILE";;
-    odt|ods|odp|sxw) odt2txt "$FILE";;
-    docx) docx2txt < "$FILE";;
-    doc) catdoc "$FILE";;
-    pdf) pdftotext -l 10 -nopgbrk "$FILE" -;;
+    odt|ods|odp|sxw) odt2txt "$FILE" | fmt --width=79;;
+    docx) docx2txt < "$FILE" | fmt --width=79;;
+    doc) catdoc "$FILE" | fmt --width=79;;
+    pdf) pdftotext -l 10 -nopgbrk "$FILE" - | fmt --width=79;;
     epub) zipinfo "$FILE";;
     torrent) transmission-show "$FILE";;
     jpg|jpeg|gif|png|tiff|bmp|mkv|mp4|mka|mp3|mp4|wav|flac|webm) exiftool "$FILE";;
