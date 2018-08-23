@@ -11,8 +11,10 @@ case "$EXT" in
     t7z|tar|tbz|tbz2|tgz|tlz|txz|tZ|tzo|war|xpi|xz|Z|zip) atool --list -- "$FILE";;
     rar) unrar lt -p- -- "$FILE";;
     7z) 7z l -p -- "$FILE";;
-    odt|ods|odp|sxw) odt2txt "$FILE";;
     htm|html|xhtml) elinks -dump "$FILE";;
+    odt|ods|odp|sxw) odt2txt "$FILE";;
+    docx) docx2txt < "$FILE";;
+    doc) catdoc "$FILE";;
     pdf) pdftotext -l 10 -nopgbrk "$FILE" -;;
     epub) zipinfo "$FILE";;
     torrent) transmission-show "$FILE";;
