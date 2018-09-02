@@ -38,7 +38,7 @@ fi
 
 
 # Set relevant variables from configuration
-read -r LOCAL REMOTE MOUNT UUID < <(echo "$JSON" | jq -r '[.local,.remote,.mount.dir//empty,.mount.uuid//empty] | @tsv')
+read -r LOCAL REMOTE MOUNT UUID KEYFILE < <(echo "$JSON" | jq -r '[.local,.remote,.mount.dir//empty,.mount.uuid//empty,.mount.keyfile//empty] | @tsv')
 readarray -t FILES < <(echo "$JSON" | jq -r '.files // empty | .[]')
 readarray -t OPTS < <(echo "$JSON" | jq -r '.arguments // empty | .[]')
 
@@ -93,7 +93,13 @@ for arg in "$@"; do
             sync
         ;;
         -m|--mount)
-            pmount /dev/disk/by-uuid/"$UUID" "$MOUNT"
+            eval KEYFILE="$KEYFILE"
+            if [ -f "$KEYFILE" ]
+            then
+                pmount -p "$KEYFILE" /dev/disk/by-uuid/"$UUID" "$MOUNT"
+            else
+                pmount /dev/disk/by-uuid/"$UUID" "$MOUNT"
+            fi
         ;;
         -u|--umount)
             pumount "$MOUNT"
