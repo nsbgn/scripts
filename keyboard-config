@@ -55,19 +55,21 @@ xkb_symbols "special" {
     key <AE07> { [ 7, ampersand, 7, 7 ] };
     key <AE08> { [ 8, asterisk, 8, 8 ] };
     key <AE09> { [ 9, parenleft, 9, 9 ] };
-    key <AE10> { [ 0, parenright, 0, 0 ] };
+    key <AE10> { [ 0, parenright, 0, asterisk ] };
     key <AD07> { [ u, U, u, 4 ] };
     key <AD08> { [ i, I, i, 5 ] };
     key <AD09> { [ o, O, o, 6 ] };
     key <AB07> { [ m, M, m, 0 ] };
+    key <AD10> { [ p, P, p, minus ] };
     key <AB08> { [ comma, less, Home, period  ] };
     key <AB09> { [ period, greater, End, comma ] };
+    key <AB10> { [ slash, question, slash, slash ] };
 
     key <AC06> { [ h, H, Left ]};
     key <AC07> { [ j, J, Down, 1 ]};
     key <AC08> { [ k, K, Up, 2 ]};
     key <AC09> { [ l, L, Right, 3 ]};
-    key <AC10> { [ semicolon, colon, asciitilde ]};
+    key <AC10> { [ semicolon, colon, asciitilde, plus ]};
     key <AC11> { [ apostrophe, quotedbl, grave ] };
 
     key <RALT> { [ Multi_key, dead_greek ] };
