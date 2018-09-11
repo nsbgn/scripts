@@ -18,6 +18,11 @@
 #    conjunction with Shift, a part of the keyboard turns into a number pad, 
 #    which is useful when you don't have a physical number pad. Again, simply
 #    tapping Tab will maintain the original effect. 
+# 6. I have an ISO keyboard, not an ANSI keyboard. This means that the Enter
+#    is L-shaped, and pretty far away. My muscle memory prefers ANSI, too.
+#    To remedy this, I just turn the bar/backslash key into an additional
+#    enter, and hide the bar behind the mode switch for Enter, and the
+#    backslash behind the mode switch for forward slash.
 #
 # The first three are easy to achieve with `setxkbmap -option compose:ralt 
 # -option caps:super` and `xcape -e Super_L=Escape`. For the others, we will 
@@ -28,6 +33,9 @@
 # - https://www.charvolant.org/doug/xkb/
 # - https://github.com/alols/xcape
 # - https://github.com/altercation/dotfiles-tilingwm
+
+# - https://www.x.org/releases/X11R7.7/doc/xorg-docs/input/XKB-Enhancing.html
+# - https://ultimatehackingkeyboard.com/blog/2015/09/09/ansi-or-iso-which-keyboard-layout-is-more-ergonomic
 
 #export DISPLAY=:0
 XKBDIR=/tmp/xkb
@@ -63,7 +71,7 @@ xkb_symbols "special" {
     key <AD10> { [ p, P, p, minus ] };
     key <AB08> { [ comma, less, Home, period  ] };
     key <AB09> { [ period, greater, End, comma ] };
-    key <AB10> { [ slash, question, slash, slash ] };
+    key <AB10> { [ slash, question, backslash, bar ] };
 
     key <AC06> { [ h, H, Left ]};
     key <AC07> { [ j, J, Down, 1 ]};
@@ -74,7 +82,10 @@ xkb_symbols "special" {
 
     key <RALT> { [ Multi_key, dead_greek ] };
 
-    key <BKSL> { [ backslash, bar ] };
+    key <RTRN> { [ Return, Return, bar, backslash ] };
+    key <BKSL> { [ Return, Return, bar, backslash ] };
+    key <LSGT> { [ Shift_L, Shift_L ] };
+
 };
 EOF
 
