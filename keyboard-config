@@ -71,7 +71,7 @@ xkb_symbols "special" {
     key <AD10> { [ p, P, p, minus ] };
     key <AB08> { [ comma, less, Home, period  ] };
     key <AB09> { [ period, greater, End, comma ] };
-    key <AB10> { [ slash, question, backslash, bar ] };
+    key <AB10> { [ slash, question, backslash ] };
 
     key <AC06> { [ h, H, Left ]};
     key <AC07> { [ j, J, Down, 1 ]};
@@ -82,8 +82,8 @@ xkb_symbols "special" {
 
     key <RALT> { [ Multi_key, dead_greek ] };
 
-    key <RTRN> { [ Return, Return, bar, backslash ] };
-    key <BKSL> { [ Return, Return, bar, backslash ] };
+    key <RTRN> { [ Return, Return, bar ] };
+    key <BKSL> { [ Return, bar, backslash ] };
     key <LSGT> { [ Shift_L, Shift_L ] };
 
 };
