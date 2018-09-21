@@ -83,7 +83,7 @@ xkb_symbols "special" {
     key <RALT> { [ Multi_key, dead_greek ] };
 
     key <RTRN> { [ Return, Return, bar ] };
-    key <BKSL> { [ Return, bar, backslash ] };
+    key <BKSL> { [ Return, Return, backslash ] };
     key <LSGT> { [ Shift_L, Shift_L ] };
 
 };
