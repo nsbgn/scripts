@@ -23,9 +23,11 @@
 #    To remedy this, I just turn the bar/backslash key into an additional
 #    enter, and hide the bar behind the mode switch for Enter, and the
 #    backslash behind the mode switch for forward slash.
+# 7. The 'keynav' program is used for keyboard-driven mouse navigation, in case
+#    we *really* need that pointer.
 #
 # The first three are easy to achieve with `setxkbmap -option compose:ralt 
-# -option caps:super` and `xcape -e Super_L=Escape`. For the others, we will 
+# -option caps:super` and `xcape -e Super_L=Escape`. For 4-6, we will 
 # make a custom keymap. I would like to find a better way, as switching 
 # keyboard layouts messes it up.
 #
@@ -33,7 +35,7 @@
 # - https://www.charvolant.org/doug/xkb/
 # - https://github.com/alols/xcape
 # - https://github.com/altercation/dotfiles-tilingwm
-
+# - https://www.semicomplete.com/projects/keynav/
 # - https://www.x.org/releases/X11R7.7/doc/xorg-docs/input/XKB-Enhancing.html
 # - https://ultimatehackingkeyboard.com/blog/2015/09/09/ansi-or-iso-which-keyboard-layout-is-more-ergonomic
 
@@ -84,7 +86,7 @@ xkb_symbols "special" {
 
     key <RTRN> { [ Return, Return, bar ] };
     key <BKSL> { [ Return, Return, backslash ] };
-    key <LSGT> { [ Shift_L, Shift_L ] };
+    key <LSGT> { [ Shift_L, bar, backslash ] };
 
 };
 EOF
@@ -96,3 +98,6 @@ xkbcomp -synch -w3 -I${XKBDIR} ${XKBDIR}/keymap/custom.xkb ${DISPLAY}
 # the respective modifiers.
 killall -q -e xcape
 xcape -e 'Super_L=Escape;ISO_Level3_Shift=Tab' -t 150ms
+
+killall -q -e keynav
+keynav &
