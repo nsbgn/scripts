@@ -19,5 +19,5 @@ case "$EXT" in
     epub) einfo "$FILE";;
     torrent) transmission-show "$FILE";;
     jpg|jpeg|gif|png|tiff|bmp|mkv|mp4|mka|mp3|mp4|wav|flac|webm) exiftool "$FILE";;
-    *) highlight -O ansi "$1" || cat "$1";;
+    *) (highlight -O ansi "$1" || cat "$1") | fmt --split-only --width=79;;
 esac
