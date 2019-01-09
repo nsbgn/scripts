@@ -1,0 +1,19 @@
+#!/bin/bash
+# Returns the current working directory of the focused urxvtc window.
+#
+# I only use urxvtc, for which https://github.com/schischi/xcwd does not work.
+# Inspired by https://github.com/wknapik/lastcwd, but rewritten because it was
+# a bit slow and I only need it for urxvtc windows anyway.
+
+WINDOWID=$(xdotool getactivewindow)
+PARENTPIDS=($(ps -o pid:1= --ppid "$(xdotool getactivewindow getwindowpid)"))
+for PID in "${PARENTPIDS[@]}"; do
+    ps e -o args= $PID \
+        |  grep --quiet "WINDOWID=$WINDOWID"\
+        && pwdx $PID \
+        |  cut -d' ' -f2- && exit 0
+done
+
+echo $HOME
+exit 1
+
