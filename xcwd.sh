@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Returns the current working directory of the focused urxvtc window.
 
@@ -7,20 +7,16 @@
 # https://gist.github.com/viking/5851049, but faster.
 
 # We first find the window ID of the active window. Then we find the newest
-# process that has the same window ID in its starting environment and has its
-# /proc/$PID/cwd set. (The PWD in the ps args is only the starting directory of
-# the process.)
+# process that has the same window ID in its initial environment, and has its
+# /proc/$PID/cwd set.
 
-PIDS="$(ps e --sort=+pid -o pid,args \
+DIR="$(for PID in $(ps e --sort=+pid -o pid,args \
     | grep -e "WINDOWID=$(xdotool getactivewindow)" \
-    | grep -o '^[0-9]*')"
+    | grep -o '^[0-9]*')
+do
+    readlink /proc/$PID/cwd
+done \
+    | tail -n 1)"
 
-DIR="$(for PID in $PIDS; do
-    readlink "/proc/$PID/cwd"
-done | tail -n 1)"
+[ -d "$DIR" ] && echo "$DIR" || echo "$HOME"
 
-if [ -z "$DIR" ]; then
-    echo "$HOME"
-else
-    echo "$DIR"
-fi
