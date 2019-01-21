@@ -20,6 +20,11 @@ Currently, the repository contains the following dmenu-based tools:
 
 Other than that, I have:
 
+- [xcwd.sh](xcwd.sh): an alternative to 
+  [xcwd](https://github.com/schischi/xcwd), 
+  [lastcwd](https://github.com/wknapik/lastcwd) and
+  [i3-shell](https://gist.github.com/viking/5851049#file-i3-shell-sh) that 
+  returns the working directory of the currently active terminal window.
 - [keyboard-config](keyboard-config): A configuration script to make the 
   keyboard more comfortable, by turning Caps Lock into a multifunctional 
   Super/Escape key and Tab into Level3/Tab. Using 
