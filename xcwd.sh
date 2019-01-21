@@ -12,8 +12,7 @@
 # /proc/$PID/cwd set. Otherwise, we just return the home directory.
 
 (echo "$HOME"
-for PID in $(\
-    ps e --sort=+pid -o pid,args | \
-    sed -n "s|^\s*\([0-9]\+\) .*WINDOWID=`xdotool getactivewindow`.*|\\1|p")
-do readlink /proc/$PID/cwd
-done ) | tail -n 1
+ ps e --sort=+pid -o pid,args \
+  | sed -n "s|^\s*\([0-9]\+\) .*WINDOWID=`xdotool getactivewindow`.*|\\1|p" \
+  | xargs -d'\n' -I{} readlink /proc/{}/cwd 
+) | tail -n 1
