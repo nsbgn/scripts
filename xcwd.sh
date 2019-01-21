@@ -11,12 +11,10 @@
 # /proc/$PID/cwd set.
 
 DIR="$(for PID in $(ps e --sort=+pid -o pid,args \
-    | grep -e "WINDOWID=$(xdotool getactivewindow)" \
-    | grep -o '^[0-9]*')
+    | sed -n "s|^\s*\([0-9]\+\) .*WINDOWID=$(xdotool getactivewindow).*|\\1|p")
 do
     readlink /proc/$PID/cwd
-done \
-    | tail -n 1)"
+done | tail -n 1)"
 
 [ -d "$DIR" ] && echo "$DIR" || echo "$HOME"
 
