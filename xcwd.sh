@@ -11,6 +11,9 @@
 # process that has the same window ID in its initial environment, and has its
 # /proc/$PID/cwd set. Otherwise, we just return the home directory.
 
+# This only works if the terminal didn't happen to have spawned another process
+# in the background that is newer than the one you are working with.
+
 (echo "$HOME"
  ps e --sort=+pid -o pid,args \
   | sed -n "s|^\s*\([0-9]\+\) .*WINDOWID=`xdotool getactivewindow`.*|\\1|p" \
