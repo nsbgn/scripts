@@ -3,25 +3,17 @@
 # The only thing I ever do with my music player is listen to albums, preferably
 # from start to finish. I was frustrated with most music player interfaces as
 # they were sluggish and hard to subject to my will. I wrote this simple script 
-# that uses dmenu, jq and standard UNIX tools to control mpv through IPC.
+# that uses dmenu, playerctl and standard UNIX tools to control mpv through IPC
+# and MPRIS.
 #
 # Dependencies: 
-#       dmenu, mpv, jq, feh, xdg-dirs, socat, find, shuf, sort, sed
-#
-# Features:
-#       - Album selection from shuffled list corresponding to directories
-#       - Status bar monitor (for i3blocks, yabar, polybar, tint2, …)
-#       - Control commands
-#
-# Alternatively, it is easy to monitor and control MPV with MPRIS if you want:
-# https://gist.github.com/slakkenhuis/c8ca2c9ed08dfc6740aa4b165a6ccef6
+#       dmenu, mpv, mpv-mpris, playerctl, xdg-dirs, socat, find, shuf, sort, sed
 
 
 MUSIC="$(xdg-user-dir MUSIC | xargs realpath)"
 CACHE="$HOME/.cache/mpvcache"
 SOCKET="/tmp/mpvsocket"
 PLAYLIST="/tmp/mpvplaylist"
-
 
 # Test if an instance of mpv is already listening. If not, start one.
 function initialise {
@@ -31,13 +23,6 @@ function initialise {
         mpv --idle --no-terminal --input-ipc-server="$SOCKET" &
     fi
 }
-
-
-# Send a command to mpv.
-function ipc {
-    echo '{"command":'"$1"'}' | socat - "$SOCKET" >&2
-}
-
 
 # Update the music database if it has changed.
 function update-db {
@@ -50,65 +35,16 @@ function update-db {
     fi
 }
 
-
 # Play all audio files in a directory.
 function play {
     if [ -d "$1" ]; then
-
         find "$1" -regex '.*\.\(mp3\|webm\|m4a\|flac\|ogg\|wav\)' \
             | sort > "$PLAYLIST"
-
-        ipc '["loadlist","'"$PLAYLIST"'","replace"]'
-        ipc '["set_property","pause",false]'
-
+        echo '{"command":["loadlist","'"$PLAYLIST"'","replace"]}' \
+            | socat - "$SOCKET" >&2
     else
         echo "Album at '$1' not found." >&2
     fi
-}
-
-
-# Continuously output the currently playing song and play status. For use with
-# statusbars. Make sure you ran --initialise. 
-function monitor {
-
-    JQ_IN='
-        .event 
-        | select(. == "metadata-update") 
-        | {"command":["get_property","metadata"]}'
-
-    JQ_OUT='
-        foreach inputs as $i 
-        ( {}
-        ; if $i.event == "idle"
-          then 
-            {}
-          else 
-            . + $i.data + {"playing": (
-                (.playing and $i.event != "pause") or
-                ($i.event == "unpause" or $i.event == "playback-restart")
-            )}
-          end
-        ; if has("playing")
-          then 
-              if .playing then " " else " " end 
-              + .title + " (" + .artist + " - " + .album + ")" 
-          else 
-              ""
-          end
-        )'
-
-    socat - UNIX-CONNECT:"$SOCKET" \
-        | jq --unbuffered --compact-output "$JQ_IN" \
-        | socat - "$SOCKET" \
-        | jq --unbuffered --null-input --raw-output "$JQ_OUT" \
-        | sed --unbuffered -E 's/(.{50})(.{1,})$/\1…/'
-}
-
-
-# Show the cover.jpg file.
-function cover {
-    COVER="$(echo '{"command":["get_property","path"]}' | socat - /tmp/mpvsocket | jq -r '.data' | xargs -0 dirname)/cover.jpg"
-    feh  --image-bg '#2f343f' --auto-zoom --info "echo $COVER" --fullscreen "$COVER"
 }
 
 case "$1" in
@@ -126,31 +62,14 @@ case "$1" in
         update-db
         play "$MUSIC/$(shuf -n1 $CACHE)"
         ;;
-    -c|--cover)
-        cover
-        ;;
-    -m|--monitor) 
-        monitor 
-        ;;
-    -s|--stop)
-        ipc '["stop"]'
-        ;;
-    -n|--next)
-        ipc '["playlist-next","force"]'
-        ;;
-    -p|--previous)
-        ipc '["playlist-prev","force"]'
+    -m|--monitor)
+        playerctl --player=mpv --follow --format '{{status}} {{title}} ({{artist}} - {{album}})' metadata \
+            | sed --unbuffered 's/^Playing//g;s/^Paused//;s/^Stopped.*//g'
         ;;
     -t|--toggle)
-        ipc '["cycle","pause"]'
+        playerctl --player=mpv play-pause
         ;;
-    --pause)
-        ipc '["set_property","pause",true]'
-        ;;
-    --play)
-        ipc '["set_property","pause",false]'
-        ;;
-    *)
-        play "$1"
+    -q|--quit)
+        playerctl --player=mpv stop
         ;;
 esac
