@@ -37,4 +37,3 @@ Other than that, I have:
   [rsync](https://rsync.samba.org/).
 - [preview](preview): A script to show a text preview of a text or binary 
   file. I use this with the [lf](https://github.com/gokcehan/lf) file manager.
-- [index](index): Creates a JSON directory tree.
