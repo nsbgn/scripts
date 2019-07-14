@@ -1,10 +1,10 @@
 #!/bin/bash
-# Utility to scan quick black-and-white letters and archive them
+# Utility to quickly scan black-and-white letters and archive them
 # https://askubuntu.com/questions/106769/scanning-from-terminal
 # https://manpages.ubuntu.com/manpages/bionic/en/man1/scanimage.1.html
 
 TITLE="${1:-scan}"
-if ! grep -q '^[0-9]{8}' <<< "$TITLE"; then
+if ! (echo "$TITLE" | grep -q '^[0-9]\{8\}'); then
     echo "Title does not include a date, inserting current date..." >&2
     TITLE="$(date +'%Y%m%d')-$TITLE"
 fi
