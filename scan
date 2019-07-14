@@ -1,0 +1,34 @@
+#!/bin/bash
+# Utility to scan quick black-and-white letters and archive them
+# https://askubuntu.com/questions/106769/scanning-from-terminal
+# https://manpages.ubuntu.com/manpages/bionic/en/man1/scanimage.1.html
+
+TITLE="${1:-scan}"
+if ! grep -q '^[0-9]{8}' <<< "$TITLE"; then
+    echo "Title does not include a date, inserting current date..." >&2
+    TITLE="$(date +'%Y%m%d')-$TITLE"
+fi
+
+OUTDIR="${SCANDIR:-$HOME/scans}"
+OUT="$OUTDIR/$TITLE.png"
+
+if [ -f "$OUT" ]; then
+    echo "File $OUT already exists." >&2
+    exit 1
+else
+    mkdir -p "$OUTDIR"
+    echo "Scanning to $OUT..." >&2
+    scanimage \
+            --progress \
+            --resolution 150 \
+            -l 0 -t 0 -x 215 -y 297 \
+            --format pnm \
+        | convert \
+            -strip \
+            -colorspace gray \
+            -sigmoidal-contrast 10,50% \
+            -resize '1000x' \
+            -posterize 8 \
+            -define png:compression-level=9 \
+            pnm:- "$OUT"
+fi
