@@ -10,7 +10,21 @@ if ! (echo "$TITLE" | grep -q '^[0-9]\{8\}'); then
 fi
 
 OUTDIR="${SCANDIR:-$HOME/scans}"
-OUT="$OUTDIR/$TITLE.png"
+
+if [ -z "$COLOR" ] ; then
+    OUT="$OUTDIR/$TITLE.png"
+    ARGS="-colorspace gray \
+          -sigmoidal-contrast 10,50% \
+          -resize 1000x \
+          -posterize 8 \
+          -define png:compression-level=9 "
+else
+    OUT="PNG8:$OUTDIR/$TITLE.png"
+    ARGS="-resize 1000x \
+          -colorspace rgb \
+          -type Palette \
+          -define png:compression-level=9 "
+fi
 
 if [ -f "$OUT" ]; then
     echo "File $OUT already exists." >&2
@@ -18,6 +32,7 @@ if [ -f "$OUT" ]; then
 else
     mkdir -p "$OUTDIR"
     echo "Scanning to $OUT..." >&2
+
     scanimage \
             --progress \
             --resolution 150 \
@@ -25,10 +40,6 @@ else
             --format pnm \
         | convert \
             -strip \
-            -colorspace gray \
-            -sigmoidal-contrast 10,50% \
-            -resize '1000x' \
-            -posterize 8 \
-            -define png:compression-level=9 \
+            $ARGS \
             pnm:- "$OUT"
 fi
