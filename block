@@ -1,0 +1,55 @@
+#!/bin/bash
+# For easily blocking websites through /etc/hosts
+
+function block-host {
+HOST="$1"
+if grep -q "^#\?\s*0.0.0.0\s*$HOST" /etc/hosts; then
+echo "Uncommenting $HOST in /etc/hosts..."
+sudo sed -i "s/^#\s*\(0.0.0.0\s*$HOST\)\s*$/\1/g" /etc/hosts
+else
+echo "Adding $HOST to /etc/hosts..."
+sudo tee -a /etc/hosts << EOF
+0.0.0.0     $HOST
+EOF
+fi
+}
+
+function unblock-host {
+HOST="$1"
+echo "Commenting $HOST in /etc/hosts..."
+sudo sed -i "s/^\s*\(0.0.0.0\s*$HOST\)\s*$/#\1/g" /etc/hosts
+}
+
+BLOCK=true
+WEBSITES=( )
+
+for ARG in "$@"; do
+    case $ARG in
+        -u|--unblock)
+            BLOCK=false
+        ;;
+        *)
+            WEBSITES+=( "$ARG" )
+        ;;
+    esac
+done
+
+for HOST in "${WEBSITES[@]}"; do
+
+    NUMBER_OF_DOTS="$(echo "$HOST" | tr -d -c '.' | wc -m)"
+    if [ $NUMBER_OF_DOTS -eq 0 ]; then
+        echo "$HOST is not a domain"
+        HOST=""
+    elif [ $NUMBER_OF_DOTS -eq 1 ]; then
+        HOST="www.$HOST"
+    fi
+
+    if [ ! -z "$HOST" ]; then
+        if [ "$BLOCK" = true ]; then
+            block-host "$HOST"
+        else
+            unblock-host "$HOST"
+        fi
+    fi
+
+done
