@@ -42,6 +42,8 @@ function play {
             | sort > "$PLAYLIST"
         echo '{"command":["loadlist","'"$PLAYLIST"'","replace"]}' \
             | socat - "$SOCKET" >&2
+        playerctl --player=mpv pause
+        playerctl --player=mpv play
     else
         echo "Album at '$1' not found." >&2
     fi
@@ -63,7 +65,7 @@ case "$1" in
         play "$MUSIC/$(shuf -n1 $CACHE)"
         ;;
     -m|--monitor)
-        playerctl --player=mpv --follow --format '{{status}} {{title}} ({{artist}} - {{album}})' metadata \
+        sleep 1; playerctl --player=mpv --follow --format '{{status}} {{title}} ({{artist}} - {{album}})' metadata \
             | sed --unbuffered 's/^Playing//g;s/^Paused//;s/^Stopped.*//g'
         ;;
     -t|--toggle)
