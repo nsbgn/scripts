@@ -1,0 +1,41 @@
+#!/bin/bash
+# Print files from command line. I'm still figuring out sensible defaults.
+# Check `lpstat -e` for available printers
+
+FILE="$@"
+PRINTER="HL1110"
+
+##############################################################################
+# lpr
+
+# -T  sets title/job name
+# -o prettyprint includes extra info
+# -o orientation-requested=4 # landscape 90 deg ccw
+# -o orientation-requested=5 # landscape 90 deg cw
+# -o page-ranges=1,3-5,16
+# -o number-up=4 # n pages per page
+
+#lpr \
+#    -P "$PRINTER" \
+#    -o job-sheets=none \
+#    -o media=a4 \
+#    -o number-up=4 \
+#    -o page-border=single \
+#    -o fit-to-page \
+#    "$FILE"
+
+##############################################################################
+# enscript
+
+# --columns=2 \
+
+enscript \
+    --printer="$PRINTER" \
+    --media=A4 \
+    --font=Courier\@16 \
+    --no-header \
+    --nup=4 \
+    --nup-xpad=20 \
+    --nup-ypad=20 \
+    "$FILE"
+
