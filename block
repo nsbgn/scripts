@@ -3,25 +3,35 @@
 
 function block-host {
 HOST="$1"
-if grep -q "^#\?\s*0.0.0.0\s*$HOST" /etc/hosts; then
+if grep -q "^#\?\s*0.0.0.0\s*[[:alnum:]]*\.\?$HOST" /etc/hosts; then
 echo "Uncommenting $HOST in /etc/hosts..."
-sudo sed -i "s/^#\s*\(0.0.0.0\s*$HOST\)\s*$/\1/g" /etc/hosts
+sudo sed -i "s/^#\s*\(0.0.0.0\s*[[:alnum:]]*\.\?$HOST\)\s*$/\1/g" /etc/hosts
 else
 echo "Adding $HOST to /etc/hosts..."
+
+NUMBER_OF_DOTS="$(echo "$HOST" | tr -d -c '.' | wc -m)"
+if [ $NUMBER_OF_DOTS -eq 0 ]; then
+    echo "$HOST is not a domain"
+    HOST=""
+else
+    if [ $NUMBER_OF_DOTS -eq 1 ]; then
+        HOST="www.$HOST"
+    fi
 sudo tee -a /etc/hosts << EOF
 0.0.0.0     $HOST
 EOF
+fi
 fi
 }
 
 function unblock-host {
 HOST="$1"
 echo "Commenting $HOST in /etc/hosts..."
-sudo sed -i "s/^\s*\(0.0.0.0\s*$HOST\)\s*$/#\1/g" /etc/hosts
+sudo sed -i "s/^\s*\(0.0.0.0\s*[[:alnum:]]*\.\?$HOST\)\s*$/#\1/g" /etc/hosts
 }
 
 BLOCK=true
-WEBSITES=( )
+HOSTS=( )
 
 for ARG in "$@"; do
     case $ARG in
@@ -29,21 +39,12 @@ for ARG in "$@"; do
             BLOCK=false
         ;;
         *)
-            WEBSITES+=( "$ARG" )
+            HOSTS+=( "$ARG" )
         ;;
     esac
 done
 
-for HOST in "${WEBSITES[@]}"; do
-
-    NUMBER_OF_DOTS="$(echo "$HOST" | tr -d -c '.' | wc -m)"
-    if [ $NUMBER_OF_DOTS -eq 0 ]; then
-        echo "$HOST is not a domain"
-        HOST=""
-    elif [ $NUMBER_OF_DOTS -eq 1 ]; then
-        HOST="www.$HOST"
-    fi
-
+for HOST in "${HOSTS[@]}"; do
     if [ ! -z "$HOST" ]; then
         if [ "$BLOCK" = true ]; then
             block-host "$HOST"
@@ -51,5 +52,4 @@ for HOST in "${WEBSITES[@]}"; do
             unblock-host "$HOST"
         fi
     fi
-
 done
