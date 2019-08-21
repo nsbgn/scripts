@@ -2,32 +2,29 @@
 # For easily blocking websites through /etc/hosts
 
 function block-host {
-HOST="$1"
-if grep -q "^#\?\s*0.0.0.0\s*[[:alnum:]]*\.\?$HOST" /etc/hosts; then
-echo "Uncommenting $HOST in /etc/hosts..."
-sudo sed -i "s/^#\s*\(0.0.0.0\s*[[:alnum:]]*\.\?$HOST\)\s*$/\1/g" /etc/hosts
-else
-echo "Adding $HOST to /etc/hosts..."
-
-NUMBER_OF_DOTS="$(echo "$HOST" | tr -d -c '.' | wc -m)"
-if [ $NUMBER_OF_DOTS -eq 0 ]; then
-    echo "$HOST is not a domain"
-    HOST=""
-else
-    if [ $NUMBER_OF_DOTS -eq 1 ]; then
-        HOST="www.$HOST"
+    HOST="$1"
+    if grep -q "^#\?\s*0.0.0.0\s*[[:alnum:]]*\.\?$HOST" /etc/hosts; then
+        echo "Uncommenting $HOST in /etc/hosts..."
+        sudo sed -i "s/^#\s*\(0.0.0.0\s*[[:alnum:]]*\.\?$HOST\)\s*$/\1/g" /etc/hosts
+    else
+        NUMBER_OF_DOTS="$(echo "$HOST" | tr -d -c '.' | wc -m)"
+        if [ $NUMBER_OF_DOTS -eq 0 ]; then
+            echo "$HOST is not a domain"
+            HOST=""
+        else
+            if [ $NUMBER_OF_DOTS -eq 1 ]; then
+                HOST="www.$HOST"
+            fi
+            echo "Adding $HOST to /etc/hosts..."
+            sudo tee -a /etc/hosts <<< "0.0.0.0     $HOST"
+        fi
     fi
-sudo tee -a /etc/hosts << EOF
-0.0.0.0     $HOST
-EOF
-fi
-fi
 }
 
 function unblock-host {
-HOST="$1"
-echo "Commenting $HOST in /etc/hosts..."
-sudo sed -i "s/^\s*\(0.0.0.0\s*[[:alnum:]]*\.\?$HOST\)\s*$/#\1/g" /etc/hosts
+    HOST="$1"
+    echo "Commenting $HOST in /etc/hosts..."
+    sudo sed -i "s/^\s*\(0.0.0.0\s*[[:alnum:]]*\.\?$HOST\)\s*$/#\1/g" /etc/hosts
 }
 
 BLOCK=true
