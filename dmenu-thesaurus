@@ -2,4 +2,12 @@
 # Menu that just keeps presenting synonyms until you can find the word that was
 # at the tip of your tongue
 
-echo '{"prompt":"Thesaurus:","command":"thesaurus","loop":true}' | dmenu-json
+while
+    NEXT_WORD="$(\
+        echo -n "$NEXT_WORD" | \
+        dmenu -p "Thesaurus:" $DMENU_ARGS | \
+        xargs --no-run-if-empty thesaurus)"
+    test "$NEXT_WORD"
+do 
+    :
+done

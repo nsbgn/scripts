@@ -18,20 +18,5 @@ done
 
 # The resulting object should have a command to feed to the shell
 if test "$JSON" && COMMAND=$(echo "$JSON" | jq -r --exit-status '.command'); then
-
-    # Feed that command to the shell, and perhaps repeatedly feed the output of the 
-    # command back to another dmenu
-    echo "$JSON" | jq --exit-status '.loop?' > /dev/null
-    if [ $? == 0 ]; then
-        while
-            OUTPUT=$(echo -n "$OUTPUT" | \
-                dmenu -p "$PROMPT" $DMENU_ARGS | \
-                xargs --no-run-if-empty "$COMMAND")
-            test "$OUTPUT"
-        do 
-            :
-        done
-    else
-        echo "$COMMAND" | sh
-    fi
+    echo "$COMMAND" | sh
 fi
