@@ -10,7 +10,7 @@
 #       dmenu, mpv, mpv-mpris, playerctl, xdg-dirs, socat, find, shuf, sort, sed
 
 
-MUSIC="$(xdg-user-dir MUSIC | xargs realpath)"
+MUSIC="$(xdg-user-dir MUSIC)"
 CACHE="$HOME/.cache/mpvcache"
 SOCKET="/tmp/mpvsocket"
 PLAYLIST="/tmp/mpvplaylist"
@@ -28,7 +28,7 @@ function initialise {
 function update-db {
     if [ ! -f "$CACHE" -o "$MUSIC" -nt "$CACHE" ]; then
         echo 'Caching music database...' >&2 
-        find "$MUSIC" -type d -links 2 \
+        find -L "$MUSIC" -type d -links 2 \
                 | sed -n "s|^$MUSIC/||p" \
                 | sort \
                 > $CACHE
