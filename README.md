@@ -31,7 +31,6 @@ Other than that, I have:
   [xcape](https://github.com/alols/xcape). 
 - [toggle-pointer](toggle-pointer): A script to disable and re-enable the 
   mouse pointer.
-- [epub](epub): A very simple epub reader for the terminal.
 - [thesaurus](thesaurus): Presents a list of related words.
 - [bak](bak): A script to keep my files backed up using 
   [rsync](https://rsync.samba.org/).
