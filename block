@@ -1,5 +1,8 @@
 #!/bin/bash
 # For easily blocking websites through /etc/hosts
+# Example:
+#   block reddit.com old.reddit.com # Block reddit
+#   block -u reddit.com old.reddit.com # Unblock reddit
 
 function block-host {
     HOST="$1"
