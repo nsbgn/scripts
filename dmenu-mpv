@@ -20,7 +20,7 @@ function initialise {
     test -S "$SOCKET" && socat /dev/null "$SOCKET" &> /dev/null
     if [ $? != 0 ]; then
         echo "Starting mpv at $SOCKET..." >&2
-        mpv --idle --no-terminal --input-ipc-server="$SOCKET" &
+        mpv --idle --no-terminal --no-audio-display --input-ipc-server="$SOCKET" &
     fi
 }
 
