@@ -35,3 +35,5 @@ Other than that, I have:
 - [bak](bak): A script to keep my files backed up using 
   [rsync](https://rsync.samba.org/).
 - [block](block): Easily blocking websites through `/etc/hosts`.
+- [print-a5-booklet](print-a5-booklet): Print PDFs as double-sided booklets on 
+  cheap printers without automatic double-sided printing.
