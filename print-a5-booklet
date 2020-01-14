@@ -10,15 +10,13 @@ set -euo pipefail
 IFS=$'\n\t'
 
 PRINTER="HL1110"
-GS_ARGS="-q -dNOPAUSE \
-    -dBATCH -sDEVICE=pdfwrite -dSAFER \
-    -dCompatibilityLevel=1.3 -dPDFSETTINGS=/printer"
+GS_ARGS=(-q -dNOPAUSE -dBATCH -sDEVICE=pdfwrite -dSAFER -dCompatibilityLevel=1.3 -dPDFSETTINGS=/printer)
 
 # This crops the whitespace away
-pdfcrop --margins 20 "$1" /tmp/book1.pdf
+pdfcrop --hires --noclip --margins 13 "$1" /tmp/book1.pdf
 
 # This scales it back to A4 size
-gs $GS_ARGS \
+gs "${GS_ARGS[@]}" \
     -dFIXEDMEDIA \
     -dPDFFitPage \
     -sPAPERSIZE=a4 \
@@ -26,23 +24,27 @@ gs $GS_ARGS \
     -f "/tmp/book1.pdf"
 
 # Makes it a booklet
-pdfbook --delta '2cm 0cm' --outfile "/tmp/book3.pdf" /tmp/book2.pdf
+pdfbook --delta '2.5cm 0cm' --outfile "/tmp/book3.pdf" /tmp/book2.pdf
 
 # Select even pages to print
-gs $GS_ARGS \
+gs "${GS_ARGS[@]}" \
     -sPageList=odd \
     -sOutputFile="/tmp/book-odd.pdf" \
     -f "/tmp/book3.pdf"
 
-gs $GS_ARGS \
+gs "${GS_ARGS[@]}" \
     -sPageList=even \
     -sOutputFile="/tmp/book-even.pdf" \
     -f "/tmp/book3.pdf"
 
 # Print
-lp -d "$PRINTER" -orientation-requested=4 /tmp/book-odd.pdf
 
-read -p "Flip the pages, then press enter to continue."
+# Also lpoptions -d $PRINTER -l lists TonerSaveMode=ON and Resolution=300dpi,
+# which should be TonerSaveMode=OFF and Resolution=600dpi
 
-lp -d "$PRINTER" -o outputorder=reverse -o orientation-requested=4 /tmp/book-even.pdf
+lp -d "$PRINTER" -o "TonerSaveMode=OFF" -o "Resolution=600dpi" -orientation-requested=4 /tmp/book-odd.pdf
+
+read -p "Wait for printing to finish, flip and reinsert the pages, then press enter to continue."
+
+lp -d "$PRINTER" -o "TonerSaveMode=OFF" -o "Resolution=600dpi" -o outputorder=reverse -o orientation-requested=4 /tmp/book-even.pdf
 
