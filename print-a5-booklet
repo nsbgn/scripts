@@ -1,19 +1,29 @@
 #!/bin/bash
 # This quick script provides a way to print paper-efficient, double-sided
 # booklets from PDFs on my cheap printer.
-# 
-# Since I put them in an A5 organizer, my first idea was to print pages
-# 4+1,8+5..., then print pages 2+3,6+7... on the other sides, but selecting
-# that way is too much hassle --- easier to just use pdfbook.
-
 set -euo pipefail
 IFS=$'\n\t'
 
-PRINTER="HL1110"
+PRINTER="PDF"
 GS_ARGS=(-q -dNOPAUSE -dBATCH -sDEVICE=pdfwrite -dSAFER -dCompatibilityLevel=1.3 -dPDFSETTINGS=/printer)
+LP_ARGS=(-o "TonerSaveMode=OFF" -o "Resolution=600dpi")
 
+# Preliminary conversion, if needed
+EXT="$(echo "${1##*.}" | tr '[:upper:]' '[:lower:]')"
+case "$EXT" in
+    md|markdown)
+        pandoc -i "$1" -o /tmp/book0.pdf
+        ;;
+    html)
+        pandoc --pdf-engine=weasyprint -i "$1" -o /tmp/book0.pdf
+        ;;
+    pdf)
+        ln -s "$1" /tmp/book0.pdf
+        ;;
+esac
+    
 # This crops the whitespace away
-pdfcrop --hires --noclip --margins 13 "$1" /tmp/book1.pdf
+pdfcrop --hires --noclip --margins 13 /tmp/book0.pdf /tmp/book1.pdf
 
 # This scales it back to A4 size
 gs "${GS_ARGS[@]}" \
@@ -24,7 +34,11 @@ gs "${GS_ARGS[@]}" \
     -f "/tmp/book1.pdf"
 
 # Makes it a booklet
-pdfbook --delta '2.5cm 0cm' --outfile "/tmp/book3.pdf" /tmp/book2.pdf
+# Since I put them in an A5 organizer, I only need to worry about the order
+# within a single paper, so, my first idea was to print pages 4+1,8+5..., then
+# print pages 2+3,6+7... on the other sides, but selecting that way is too much
+# hassle --- easier to just use pdfbook.
+pdfbook --delta '2.2cm 0cm' --outfile "/tmp/book3.pdf" /tmp/book2.pdf
 
 # Select even pages to print
 gs "${GS_ARGS[@]}" \
@@ -38,13 +52,7 @@ gs "${GS_ARGS[@]}" \
     -f "/tmp/book3.pdf"
 
 # Print
-
-# Also lpoptions -d $PRINTER -l lists TonerSaveMode=ON and Resolution=300dpi,
-# which should be TonerSaveMode=OFF and Resolution=600dpi
-
-lp -d "$PRINTER" -o "TonerSaveMode=OFF" -o "Resolution=600dpi" -orientation-requested=4 /tmp/book-odd.pdf
-
+lp -d "$PRINTER" "${LP_ARGS[@]}" -o orientation-requested=4 /tmp/book-odd.pdf
 read -p "Wait for printing to finish, flip and reinsert the pages, then press enter to continue."
-
-lp -d "$PRINTER" -o "TonerSaveMode=OFF" -o "Resolution=600dpi" -o outputorder=reverse -o orientation-requested=4 /tmp/book-even.pdf
+lp -d "$PRINTER" "${LP_ARGS[@]}" -o outputorder=reverse -o orientation-requested=4 /tmp/book-even.pdf
 
