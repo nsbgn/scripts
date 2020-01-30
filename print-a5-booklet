@@ -35,23 +35,35 @@ gs "${GS_ARGS[@]}" \
 
 # This adds blank pages on odd-numbered pages. This is a temporary measure ---
 # I have a lot of scrap paper that is still blank on one side, and this way I
-# can print on that side and cut away the rest to use as scrap paper
-# ... Actually, I didn't think this through. Doesn't work in combination with
-# pdfbook.
-#NUM=$(pdftk /tmp/book2.pdf dump_data | grep '^NumberOfPages' | cut -f2 -d' ')
-#RANGE=()
-#for I in $(seq 1 $NUM); do
-#    RANGE+=(A$I B1) 
-#done
-#echo | ps2pdf -sPAPERSIZE=a4 - /tmp/blank.pdf
-#pdftk A=/tmp/book2.pdf B=/tmp/blank.pdf cat "${RANGE[@]}" output /tmp/book2a.pdf
+# can print on that side and cut away the rest to use as scrap paper.
+NUM=$(pdftk /tmp/book2.pdf dump_data | grep '^NumberOfPages' | cut -f2 -d' ')
+RANGE=()
+for I in $(seq 1 $NUM); do
+    if [ $(($I % 2)) -eq 0 ]; then
+        RANGE+=(A$I B1) 
+    else
+        RANGE+=(B1 A$I) 
+    fi
+done
+echo | ps2pdf -sPAPERSIZE=a4 - /tmp/blank.pdf
+pdftk A=/tmp/book2.pdf B=/tmp/blank.pdf cat "${RANGE[@]}" output /tmp/book2a.pdf
 
 # Makes it a booklet
 # Since I put them in an A5 organizer, I only need to worry about the order
 # within a single paper, so, my first idea was to print pages 4+1,8+5..., then
 # print pages 2+3,6+7... on the other sides, but selecting that way is too much
 # hassle --- easier to just use pdfbook.
-pdfbook --delta '2.2cm 0cm' --outfile "/tmp/book3.pdf" /tmp/book2.pdf
+#pdfbook --delta '2.2cm 0cm' --outfile "/tmp/book3.pdf" /tmp/book2.pdf
+
+pdfjam \
+    --nup 2x1 \
+    --landscape  \
+    --delta '2.2cm 0cm' \
+    --outfile /tmp/book3.pdf \
+    -- /tmp/book2a.pdf -
+
+#    --signature '4' \
+#    --booklet 'true' \ 
 
 # Select even pages to print
 gs "${GS_ARGS[@]}" \
@@ -65,7 +77,8 @@ gs "${GS_ARGS[@]}" \
     -f "/tmp/book3.pdf"
 
 # Print
-lp -d "$PRINTER" "${LP_ARGS[@]}" -o orientation-requested=4 /tmp/book-odd.pdf
+# -o orientation-requested=4 
+lp -d "$PRINTER" "${LP_ARGS[@]}" /tmp/book-odd.pdf
 read -p "Wait for printing to finish, flip and reinsert the pages, then press enter to continue."
-lp -d "$PRINTER" "${LP_ARGS[@]}" -o outputorder=reverse /tmp/book-even.pdf
+lp -d "$PRINTER" "${LP_ARGS[@]}" -o outputorder=reverse -o orientation-requested=6 /tmp/book-even.pdf
 
