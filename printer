@@ -5,6 +5,11 @@ set -euo pipefail
 IFS=$'\n\t'
 LP_ARGS=(-o "TonerSaveMode=OFF" -o "Resolution=600dpi")
 
+PANDOC_ARGS=(\
+    --pdf-engine=weasyprint \
+    --css "$HOME/projects/website/.build/style.css" \
+    --template "$HOME/projects/snel/templates/page.html")
+
 # Exit if given printer is unknown. Check `lpstat -e` for available printers
 (lpoptions -d ${PRINTER:-undefined} 2>&1 > /dev/null) || \
     (echo "Printer \"${PRINTER:-undefined}\" is unknown." 1>&2; exit 1)
@@ -20,18 +25,17 @@ trap finalize EXIT
 
 # Start processing
 INPUT="$1"
-EXT="$(echo "${1##*.}" | tr '[:upper:]' '[:lower:]')"
+OUTPUT="$INPUT"
 
 
 # Preliminary conversion to PDF, if needed
 echo "Make sure we are dealing with a PDF file..." 1>&2
+EXT="$(echo "${1##*.}" | tr '[:upper:]' '[:lower:]')"
 case "${EXT}" in
+    pdf) ;;
     md|markdown|html|epub)
         OUTPUT=$(mktemp -p "${TMP}" "XXX.pdf")
-        pandoc --pdf-engine=weasyprint -i "${INPUT}" -o "${OUTPUT}"
-        ;;
-    pdf)
-        OUTPUT="${INPUT}"
+        pandoc "${PANDOC_ARGS[@]}" -i "${INPUT}" -o "${OUTPUT}"
         ;;
     *)
         echo "Unknown file format ${EXT}" 1>&2; exit 1
@@ -46,25 +50,19 @@ OUTPUT="$(mktemp -p "${TMP}" "XXX.pdf")"
 pdfcrop \
     --hires \
     --noclip \
-    --margins 17 \
+    --margins '17' \
     "${INPUT}" "${OUTPUT}"
 
 
-# This scales it back to A4 size. Very slow.
+# This scales it back to A4 size
 echo "Scaling back to A4 size..." 1>&2 
 INPUT="${OUTPUT}"
 OUTPUT="$(mktemp -p "${TMP}" "XXX.pdf")"
-gs -q -dNOPAUSE \
-    -dBATCH \
-    -sDEVICE=pdfwrite \
-    -dSAFER \
-    -dCompatibilityLevel=1.3 \
-    -dPDFSETTINGS=/printer
-    -dFIXEDMEDIA \
-    -dPDFFitPage \
-    -sPAPERSIZE=a4 \
-    -sOutputFile="${OUTPUT}" \
-    -f "${INPUT}"
+pdfjam \
+    --paper 'a4paper' \
+    --fitpaper 'true' \
+    --outfile "${OUTPUT}" \
+    -- "${INPUT}" -
 
 
 # Puts it in booklet form
@@ -74,7 +72,7 @@ OUTPUT="$(mktemp -p "${TMP}" "XXX.pdf")"
 pdfjam \
     --booklet 'true' \
     --signature '4' \
-    --landscape  \
+    --landscape \
     --delta '2.2cm 0cm' \
     --outfile "${OUTPUT}" \
     -- "${INPUT}" -
