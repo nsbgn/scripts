@@ -3,82 +3,90 @@
 # booklets from PDFs on my cheap printer.
 set -euo pipefail
 IFS=$'\n\t'
-
-PRINTER="HL1110"
-GS_ARGS=(-q -dNOPAUSE -dBATCH -sDEVICE=pdfwrite -dSAFER -dCompatibilityLevel=1.3 -dPDFSETTINGS=/printer)
 LP_ARGS=(-o "TonerSaveMode=OFF" -o "Resolution=600dpi")
 
-# Preliminary conversion, if needed
+# Exit if given printer is unknown. Check `lpstat -e` for available printers
+(lpoptions -d ${PRINTER:-undefined} 2>&1 > /dev/null) || \
+    (echo "Printer \"${PRINTER:-undefined}\" is unknown." 1>&2; exit 1)
+
+
+# Make a temporary directory for this run, and make sure it gets deleted
+TMP=$(mktemp -d "${TMPDIR:-/tmp/}$(basename $0).XXXXX")
+function finalize {
+    rm -rf "${TMP}"
+}
+trap finalize EXIT
+
+
+# Start processing
+INPUT="$1"
 EXT="$(echo "${1##*.}" | tr '[:upper:]' '[:lower:]')"
-case "$EXT" in
-    md|markdown)
-        pandoc -i "$1" -o /tmp/book0.pdf
-        ;;
-    html)
-        pandoc --pdf-engine=weasyprint -i "$1" -o /tmp/book0.pdf
+
+
+# Preliminary conversion to PDF, if needed
+echo "Make sure we are dealing with a PDF file..." 1>&2
+case "${EXT}" in
+    md|markdown|html|epub)
+        OUTPUT=$(mktemp -p "${TMP}" "XXX.pdf")
+        pandoc --pdf-engine=weasyprint -i "${INPUT}" -o "${OUTPUT}"
         ;;
     pdf)
-        cp -f "$1" /tmp/book0.pdf
+        OUTPUT="${INPUT}"
+        ;;
+    *)
+        echo "Unknown file format ${EXT}" 1>&2; exit 1
         ;;
 esac
-    
-# This crops the whitespace away
-pdfcrop --hires --noclip --margins 17 /tmp/book0.pdf /tmp/book1.pdf
 
-# This scales it back to A4 size
-gs "${GS_ARGS[@]}" \
+
+# This crops the whitespace away
+echo "Cropping whitespace..." 1>&2
+INPUT="${OUTPUT}"
+OUTPUT="$(mktemp -p "${TMP}" "XXX.pdf")"
+pdfcrop \
+    --hires \
+    --noclip \
+    --margins 17 \
+    "${INPUT}" "${OUTPUT}"
+
+
+# This scales it back to A4 size. Very slow.
+echo "Scaling back to A4 size..." 1>&2 
+INPUT="${OUTPUT}"
+OUTPUT="$(mktemp -p "${TMP}" "XXX.pdf")"
+gs -q -dNOPAUSE \
+    -dBATCH \
+    -sDEVICE=pdfwrite \
+    -dSAFER \
+    -dCompatibilityLevel=1.3 \
+    -dPDFSETTINGS=/printer
     -dFIXEDMEDIA \
     -dPDFFitPage \
     -sPAPERSIZE=a4 \
-    -sOutputFile="/tmp/book2.pdf" \
-    -f "/tmp/book1.pdf"
+    -sOutputFile="${OUTPUT}" \
+    -f "${INPUT}"
 
-# This adds blank pages on odd-numbered pages. This is a temporary measure ---
-# I have a lot of scrap paper that is still blank on one side, and this way I
-# can print on that side and cut away the rest to use as scrap paper.
-NUM=$(pdftk /tmp/book2.pdf dump_data | grep '^NumberOfPages' | cut -f2 -d' ')
-RANGE=()
-for I in $(seq 1 $NUM); do
-    if [ $(($I % 2)) -eq 0 ]; then
-        RANGE+=(A$I B1) 
-    else
-        RANGE+=(B1 A$I) 
-    fi
-done
-echo | ps2pdf -sPAPERSIZE=a4 - /tmp/blank.pdf
-pdftk A=/tmp/book2.pdf B=/tmp/blank.pdf cat "${RANGE[@]}" output /tmp/book2a.pdf
 
-# Makes it a booklet
-# Since I put them in an A5 organizer, I only need to worry about the order
-# within a single paper, so, my first idea was to print pages 4+1,8+5..., then
-# print pages 2+3,6+7... on the other sides, but selecting that way is too much
-# hassle --- easier to just use pdfbook.
-#pdfbook --delta '2.2cm 0cm' --outfile "/tmp/book3.pdf" /tmp/book2.pdf
-
+# Puts it in booklet form
+echo "Making booklet..." 1>&2
+INPUT="${OUTPUT}"
+OUTPUT="$(mktemp -p "${TMP}" "XXX.pdf")"
 pdfjam \
-    --nup 2x1 \
+    --booklet 'true' \
+    --signature '4' \
     --landscape  \
     --delta '2.2cm 0cm' \
-    --outfile /tmp/book3.pdf \
-    -- /tmp/book2a.pdf -
+    --outfile "${OUTPUT}" \
+    -- "${INPUT}" -
 
-#    --signature '4' \
-#    --booklet 'true' \ 
+# Print odd pages
+ODD="$(mktemp -p "${TMP}" "XXX.odd.pdf")"
+pdftk "${OUTPUT}" cat odd output "${ODD}"
+lp -d "$PRINTER" "${LP_ARGS[@]}" "${ODD}"
 
-# Select even pages to print
-gs "${GS_ARGS[@]}" \
-    -sPageList=odd \
-    -sOutputFile="/tmp/book-odd.pdf" \
-    -f "/tmp/book3.pdf"
-
-gs "${GS_ARGS[@]}" \
-    -sPageList=even \
-    -sOutputFile="/tmp/book-even.pdf" \
-    -f "/tmp/book3.pdf"
-
-# Print
-# -o orientation-requested=4 
-lp -d "$PRINTER" "${LP_ARGS[@]}" /tmp/book-odd.pdf
 read -p "Wait for printing to finish, flip and reinsert the pages, then press enter to continue."
-lp -d "$PRINTER" "${LP_ARGS[@]}" -o outputorder=reverse -o orientation-requested=6 /tmp/book-even.pdf
 
+# Print even pages
+EVEN="$(mktemp -p "${TMP}" "XXX.even.pdf")"
+pdftk "${OUTPUT}" cat even output "${EVEN}"
+lp -d "$PRINTER" "${LP_ARGS[@]}" -o outputorder=reverse "${EVEN}"
