@@ -35,5 +35,7 @@ Other than that, I have:
 - [bak](bak): A script to keep my files backed up using 
   [rsync](https://rsync.samba.org/).
 - [block](block): Easily blocking websites through `/etc/hosts`.
-- [print-a5-booklet](print-a5-booklet): Print PDFs as double-sided booklets on 
-  cheap printers without automatic double-sided printing.
+- [printer](printer): Print PDFs as double-sided booklets on cheap printers 
+  without automatic double-sided printing.
+- [scanner](scanner): My default, barebones scanner command for low-res, 
+  black-and-white scans.
