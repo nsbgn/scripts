@@ -27,43 +27,38 @@ trap finalize EXIT
 INPUT="$1"
 OUTPUT="$INPUT"
 
-
-# Preliminary conversion to PDF, if needed
-echo "Make sure we are dealing with a PDF file..." 1>&2
 EXT="$(echo "${1##*.}" | tr '[:upper:]' '[:lower:]')"
-case "${EXT}" in
-    pdf) ;;
-    md|markdown|html|epub)
-        OUTPUT=$(mktemp -p "${TMP}" "XXX.pdf")
-        pandoc "${PANDOC_ARGS[@]}" -i "${INPUT}" -o "${OUTPUT}"
-        ;;
-    *)
-        echo "Unknown file format ${EXT}" 1>&2; exit 1
-        ;;
-esac
+
+if [ "${EXT}" == "pdf" ]; then
+
+    # PDFs are cropped before use, since they tend to be intended for A4 paper
+
+    # This crops the whitespace away
+    echo "Cropping whitespace..." 1>&2
+    INPUT="${OUTPUT}"
+    OUTPUT="$(mktemp -p "${TMP}" "XXX.pdf")"
+    pdfcrop \
+        --hires \
+        --noclip \
+        --margins '17' \
+        "${INPUT}" "${OUTPUT}"
 
 
-# This crops the whitespace away
-echo "Cropping whitespace..." 1>&2
-INPUT="${OUTPUT}"
-OUTPUT="$(mktemp -p "${TMP}" "XXX.pdf")"
-pdfcrop \
-    --hires \
-    --noclip \
-    --margins '17' \
-    "${INPUT}" "${OUTPUT}"
+    # This scales it back to A4 size
+    echo "Scaling back to A4 size..." 1>&2 
+    INPUT="${OUTPUT}"
+    OUTPUT="$(mktemp -p "${TMP}" "XXX.pdf")"
+    pdfjam \
+        --paper 'a4paper' \
+        --fitpaper 'true' \
+        --outfile "${OUTPUT}" \
+        -- "${INPUT}" -
+else
+    # Non-PDFs are converted to PDF using Pandoc
 
-
-# This scales it back to A4 size
-echo "Scaling back to A4 size..." 1>&2 
-INPUT="${OUTPUT}"
-OUTPUT="$(mktemp -p "${TMP}" "XXX.pdf")"
-pdfjam \
-    --paper 'a4paper' \
-    --fitpaper 'true' \
-    --outfile "${OUTPUT}" \
-    -- "${INPUT}" -
-
+    OUTPUT=$(mktemp -p "${TMP}" "XXX.pdf")
+    pandoc "${PANDOC_ARGS[@]}" -i "${INPUT}" -o "${OUTPUT}"
+fi
 
 # Puts it in booklet form
 echo "Making booklet..." 1>&2
@@ -77,14 +72,19 @@ pdfjam \
     --outfile "${OUTPUT}" \
     -- "${INPUT}" -
 
-# Print odd pages
-ODD="$(mktemp -p "${TMP}" "XXX.odd.pdf")"
-pdftk "${OUTPUT}" cat odd output "${ODD}"
-lp -d "$PRINTER" "${LP_ARGS[@]}" "${ODD}"
+cp --interactive "${OUTPUT}" output.pdf
+if read -p "Continue?"; then
 
-read -p "Wait for printing to finish, flip and reinsert the pages, then press enter to continue."
+    # Print odd pages
+    ODD="$(mktemp -p "${TMP}" "XXX.odd.pdf")"
+    pdftk "${OUTPUT}" cat odd output "${ODD}"
+    lp -d "$PRINTER" "${LP_ARGS[@]}" "${ODD}"
 
-# Print even pages
-EVEN="$(mktemp -p "${TMP}" "XXX.even.pdf")"
-pdftk "${OUTPUT}" cat even output "${EVEN}"
-lp -d "$PRINTER" "${LP_ARGS[@]}" -o outputorder=reverse "${EVEN}"
+    read -p "Wait for printing to finish, flip and reinsert the pages, then press enter to continue."
+
+    # Print even pages
+    EVEN="$(mktemp -p "${TMP}" "XXX.even.pdf")"
+    pdftk "${OUTPUT}" cat even output "${EVEN}"
+    lp -d "$PRINTER" "${LP_ARGS[@]}" -o outputorder=reverse "${EVEN}"
+
+fi
