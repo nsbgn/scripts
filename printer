@@ -1,14 +1,24 @@
 #!/bin/bash
 # This quick script provides a way to print paper-efficient, double-sided
 # booklets from PDFs on my cheap printer.
+# Dependencies: 
+#   lp, pandoc, pdfjam, pdfcrop, pdftk, mupdf, github.com/slakkenhuis/snel
 set -euo pipefail
 IFS=$'\n\t'
-LP_ARGS=(-o "TonerSaveMode=OFF" -o "Resolution=600dpi")
+LP_ARGS=(\
+    -o "TonerSaveMode=OFF" \
+    -o "Resolution=600dpi" \
+    -o "PageSize=A4" \
+    -o "media=a4" \
+    -o "fit-to-page" \
+)
 
 PANDOC_ARGS=(\
     --pdf-engine=weasyprint \
-    --css "$HOME/projects/website/.build/style.css" \
-    --template "$HOME/projects/snel/templates/page.html")
+    --css "/usr/share/snel/style.css" \
+    --template "/usr/share/snel/pandoc/page.html" \
+    --shift-heading-level-by=1 \
+)
 
 # Exit if given printer is unknown. Check `lpstat -e` for available printers
 (lpoptions -d ${PRINTER:-undefined} 2>&1 > /dev/null) || \
@@ -72,7 +82,8 @@ pdfjam \
     --outfile "${OUTPUT}" \
     -- "${INPUT}" -
 
-cp --interactive "${OUTPUT}" output.pdf
+echo "Showing preview..." 1>&2
+mupdf "${OUTPUT}"
 if read -p "Continue?"; then
 
     # Print odd pages
