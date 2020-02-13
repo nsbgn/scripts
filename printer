@@ -15,8 +15,8 @@ LP_ARGS=(\
 
 PANDOC_ARGS=(\
     --pdf-engine=weasyprint \
-    --css "/usr/share/snel/style.css" \
-    --template "/usr/share/snel/pandoc/page.html" \
+    --css "/usr/local/share/snel/style.css" \
+    --template "/usr/local/share/snel/pandoc/page.html" \
     --shift-heading-level-by=1 \
 )
 
