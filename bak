@@ -103,6 +103,7 @@ for arg in "$@"; do
         ;;
         -u|--umount)
             pumount "$MOUNT"
+            udisksctl power-off --block-device /dev/disk/by-uuid/"$UUID"
         ;;
         *)
         echo "Unknown command line argument."
