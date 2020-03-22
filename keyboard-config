@@ -18,8 +18,7 @@
 #    conjunction with Shift, a part of the keyboard turns into a number pad, 
 #    which is useful when you don't have a physical number pad. Again, simply
 #    tapping Tab will maintain the original effect. 
-# 6. The 'keynav' program is used for keyboard-driven mouse navigation, in case
-#    we *really* need that pointer.
+# 6. The 'keynav' program is used for keyboard-driven mouse navigation, in case we *really* need that pointer.
 #
 # The first three are easy to achieve with `setxkbmap -option compose:ralt 
 # -option caps:super` and `xcape -e Super_L=Escape`. For 4 and 5, we will 
@@ -60,21 +59,23 @@ xkb_symbols "special" {
     key <AE07> { [ 7, ampersand, 7, 7 ] };
     key <AE08> { [ 8, asterisk, 8, 8 ] };
     key <AE09> { [ 9, parenleft, 9, 9 ] };
-    key <AE10> { [ 0, parenright, 0, asterisk ] };
+    key <AE10> { [ 0, parenright, 0, equal ] };
+    key <AD06> { [ y, Y, y, asterisk ] };
     key <AD07> { [ u, U, u, 4 ] };
     key <AD08> { [ i, I, i, 5 ] };
     key <AD09> { [ o, O, o, 6 ] };
+    key <AB06> { [ n, N, n, period ] };
     key <AB07> { [ m, M, m, 0 ] };
-    key <AD10> { [ p, P, p, minus ] };
-    key <AB08> { [ comma, less, Home, period  ] };
-    key <AB09> { [ period, greater, End, comma ] };
+    key <AD10> { [ p, P, p, slash ] };
+    key <AB08> { [ comma, less, Home, parenleft  ] };
+    key <AB09> { [ period, greater, End, parenright ] };
     key <AB10> { [ slash, question, backslash ] };
 
-    key <AC06> { [ h, H, Left ]};
+    key <AC06> { [ h, H, Left, plus ]};
     key <AC07> { [ j, J, Down, 1 ]};
     key <AC08> { [ k, K, Up, 2 ]};
     key <AC09> { [ l, L, Right, 3 ]};
-    key <AC10> { [ semicolon, colon, asciitilde, plus ]};
+    key <AC10> { [ semicolon, colon, asciitilde, minus ]};
     key <AC11> { [ apostrophe, quotedbl, grave ] };
 
     key <RALT> { [ Multi_key, dead_greek ] };
