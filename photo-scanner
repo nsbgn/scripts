@@ -7,46 +7,56 @@
 set -euo pipefail
 IFS=$'\n\t'
 
+# Make a temporary directory for this run, and make sure it will get deleted
+TMP=$(mktemp -d "${TMPDIR:-/tmp/}$(basename $0).XXXXX")
+function finalize {
+    rm -rf "${TMP}"
+}
+trap finalize EXIT
+
 INPUT="$1" # Input file (to be replaced with result of scan later)
 PREFIX=OUTPUT # Prefix to the output files
 FUZZ=10 # How exact we are with color
 GRID=6 # How many grid points are we testing in either dimension?
 N=0 # Starting value for the output filename
 
+LOC="${TMP}/local-mask.mpc"
+GLOB="${TMP}/global-mask.mpc"
+
 # Make a mask such that the background of the scan is transparent and
 # everything else is plain red
 convert ${INPUT} -fuzz ${FUZZ}% \
     -fill none -draw "matte 0,0 floodfill" \
     -fill red +opaque none \
-    glob.mpc
+    ${GLOB}
 
 # Now we try to find each individual photo by looping over a grid
 for((I=1; I < ${GRID}; I++)); do for((J=1; J < ${GRID}; J++)); do
 
-    X=$(convert glob.mpc -format "%[fx:round(${I}/${GRID}*w)]" info:)
-    Y=$(convert glob.mpc -format "%[fx:round(${J}/${GRID}*h)]" info:)
+    X=$(convert ${GLOB} -format "%[fx:round(${I}/${GRID}*w)]" info:)
+    Y=$(convert ${GLOB} -format "%[fx:round(${J}/${GRID}*h)]" info:)
 
     # If the color at this position is not transparent, we found a picture!
-    if [ $(convert glob.mpc -format "%[fx:u.p{$X,$Y}==none]" info:) -eq 0 ]; then
+    if [ $(convert ${GLOB} -format "%[fx:u.p{$X,$Y}==none]" info:) -eq 0 ]; then
         OUTPUT="${PREFIX}-${N}.png"
        
         # Create mask by making only the current region opaque
-        convert glob.mpc -fuzz ${FUZZ}% \
+        convert ${GLOB} -fuzz ${FUZZ}% \
             -fill white -draw "color $X,$Y floodfill" \
             +transparent white \
-            loc.mpc
+            ${LOC}
 
         # Compose the mask with the scan, then trim and de-rotate to get the output
         echo "Writing ${OUTPUT}..."
         convert ${INPUT} -alpha on \
-            loc.mpc -compose Dst_In -composite \
+            ${LOC} -compose Dst_In -composite \
             -background white -alpha remove \
             -trim -deskew 40% -trim +repage \
             ${OUTPUT}
 
         # Remove current region from the global mask so that it won't be found again
-        convert glob.mpc -fuzz ${FUZZ}% \
-            -fill none -draw "matte $X,$Y floodfill" glob.mpc
+        convert ${GLOB} -fuzz ${FUZZ}% \
+            -fill none -draw "matte $X,$Y floodfill" ${GLOB}
 
         N=$(($N+1))
     fi
