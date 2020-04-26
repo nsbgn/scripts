@@ -39,3 +39,6 @@ Other than that, I have:
   without automatic double-sided printing.
 - [scanner](scanner): My default, barebones scanner command for low-res, 
   black-and-white scans.
+- [photo-scanner](photo-scanner): The command I use for scanning photographs. 
+  It automatically separates multiple pictures, and it crops and de-rotates 
+  them.
