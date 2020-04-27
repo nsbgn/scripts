@@ -56,20 +56,15 @@ for((X=${Xd};X<${WIDTH};X=${X}+${Xd})); do for((Y=${Yd};Y<${HEIGHT};Y=${Y}+${Yd}
 
     # If the color at this position is not transparent, we found a picture!
     if [ $(convert ${GMASK} -format "%[fx:u.p{${X},${Y}}==none]" info:) -eq 0 ]; then
-        OUTPUT="${TITLE}-${NUMBER}.jpg"
 
-        if [ -f "$OUTPUT" ]; then
-            echo "File \"${OUTPUT}\" already exists!" >&2
-            exit 1
-        fi
-       
         # Create local mask by keeping only the current region opaque
         convert ${GMASK} -fuzz ${FUZZ}% \
             -fill white -draw "color ${X},${Y} floodfill" \
             +transparent white \
             ${LMASK}
 
-        # Compose the local mask with the scan, then trim and de-rotate
+        # Compose that local mask with input, then trim & de-rotate for output
+        OUTPUT="${TITLE}-${NUMBER}.jpg"
         echo "Writing ${OUTPUT}..." >&2
         convert ${INPUT} -alpha on \
             ${LMASK} -compose Dst_In -composite \
@@ -77,7 +72,7 @@ for((X=${Xd};X<${WIDTH};X=${X}+${Xd})); do for((Y=${Yd};Y<${HEIGHT};Y=${Y}+${Yd}
             -trim -deskew 40% -trim +repage \
             ${OUTPUT}
 
-        # Remove current region from the global mask so that it won't be found again
+        # Remove current region from global mask so that it won't be refound
         convert ${GMASK} -fuzz ${FUZZ}% \
             -fill none -draw "matte ${X},${Y} floodfill" ${GMASK}
 
