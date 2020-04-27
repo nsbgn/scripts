@@ -19,23 +19,19 @@ GLOB="${TMP}/global-mask.mpc"
 DPI=300 # DPI resolution
 FUZZ=10 # How exact are we with color
 GRID=6 # How many grid points are we testing in either dimension?
-TITLE="${1:-}" # What is the title of the output file?
-
-if [ -z "${TITLE}" ]; then
-    echo "No title given!"
-    exit 1
-fi
+TITLE="${1:-photo}" # What is the title of the output file?
 
 # Scan an image if the $INPUT variable is empty
 if [ -z "${INPUT:-}" ] ; then
     INPUT="${TMP}/scan.pnm"
-    echo "Starting up scanner..."
+    echo "Starting up scanner..." >&2
     scanimage \
         --progress \
         --resolution ${DPI} \
-        -l 2 -t 2 -x 214 -y 296 \
-        --format pnm > ${INPUT}
-    echo "Scan finished. Now cropping and de-rotating..."
+        -l 2 -t 2 -x 215 -y 297 \
+        --format pnm > ${INPUT} \
+    && (echo "Scan finished. Now cropping and de-rotating..." >&2) \
+    || (echo "Scan failed. Exiting..." >&2 ; exit 1)
 fi
 
 # Make a mask such that the background of the scan is transparent and
@@ -55,7 +51,7 @@ for((X=${Xd};X<${WIDTH};X=${X}+${Xd})); do for((Y=${Yd};Y<${HEIGHT};Y=${Y}+${Yd}
         OUTPUT="${TITLE}-${N}.jpg"
 
         if [ -f "$OUTPUT" ]; then
-            echo "File \"${OUTPUT}\" already exists!"
+            echo "File \"${OUTPUT}\" already exists!" >&2
             exit 1
         fi
        
@@ -66,7 +62,7 @@ for((X=${Xd};X<${WIDTH};X=${X}+${Xd})); do for((Y=${Yd};Y<${HEIGHT};Y=${Y}+${Yd}
             ${LOC}
 
         # Compose the local mask with the scan, then trim and de-rotate
-        echo "Writing ${OUTPUT}..."
+        echo "Writing ${OUTPUT}..." >&2
         convert ${INPUT} -alpha on \
             ${LOC} -compose Dst_In -composite \
             -background white -alpha remove \
