@@ -18,10 +18,10 @@ LOC="${TMP}/local-mask.mpc"
 GLOB="${TMP}/global-mask.mpc"
 DPI=300 # DPI resolution
 FUZZ=10 # How exact are we with color
-GRID=6 # How many grid points are we testing in either dimension?
-TITLE="${1:-photo}" # What is the title of the output file?
+GRID=10 # How many grid points are we testing in either dimension?
+TITLE="${1:-photo}" # What will be the prefix to the output file?
 
-# Scan an image if the $INPUT variable is empty
+# Scan an image if the ${INPUT} variable is empty
 if [ -z "${INPUT:-}" ] ; then
     INPUT="${TMP}/scan.pnm"
     echo "Starting up scanner..." >&2
@@ -41,14 +41,19 @@ convert ${INPUT} -fuzz ${FUZZ}% \
     -fill red +opaque none \
     ${GLOB}
 
+# If there are already pictures called `${TITLE}${NUMBER}.jpg` in the current
+# directory, we will make sure that our number is one higher
+NUMBER=$((1 + $( echo ${TITLE}-0.jpg ${TITLE}-*.jpg \
+    | tr ' ' '\n' | sed -n "s|${TITLE}-\([0-9]\+\).jpg|\1|p" \
+    | sort -g | tail -n 1) ))
+
 # Now we try to find each individual photo by looping over a grid
-N=1
 IFS=' ' read -r WIDTH HEIGHT Xd Yd <<< $( convert ${GLOB} -format "%w %h %[fx:trunc(w/${GRID})] %[fx:trunc(h/${GRID})]" info: )
 for((X=${Xd};X<${WIDTH};X=${X}+${Xd})); do for((Y=${Yd};Y<${HEIGHT};Y=${Y}+${Yd})); do
 
     # If the color at this position is not transparent, we found a picture!
     if [ $(convert ${GLOB} -format "%[fx:u.p{${X},${Y}}==none]" info:) -eq 0 ]; then
-        OUTPUT="${TITLE}-${N}.jpg"
+        OUTPUT="${TITLE}-${NUMBER}.jpg"
 
         if [ -f "$OUTPUT" ]; then
             echo "File \"${OUTPUT}\" already exists!" >&2
@@ -73,7 +78,7 @@ for((X=${Xd};X<${WIDTH};X=${X}+${Xd})); do for((Y=${Yd};Y<${HEIGHT};Y=${Y}+${Yd}
         convert ${GLOB} -fuzz ${FUZZ}% \
             -fill none -draw "matte ${X},${Y} floodfill" ${GLOB}
 
-        N=$(($N+1))
+        NUMBER=$((${NUMBER}+1))
     fi
 done
 done
