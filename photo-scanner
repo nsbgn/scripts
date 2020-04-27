@@ -1,9 +1,12 @@
 #!/bin/bash
-# photo-scanner
+# `photo-scanner` - I use this to scan and then automatically separate, crop
+# and derotate analog pictures. `fmwconcepts.com/imagemagick/multicrop` was an
+# inspiration, but this is written from scratch since multicrop is non-free.
 #
-# I use this to scan and then automatically separate, crop and de-rotate analog
-# pictures. The script is inspired by `fmwconcepts.com/imagemagick/multicrop`,
-# but written from scratch as the aforementioned is not libre.
+# Usage examples:
+#   photo-scanner OUTPUT_TITLE
+#   INPUT=already-scanned-picture.jpg photo-scanner
+
 set -euo pipefail
 IFS=$'\n\t'
 
@@ -14,14 +17,14 @@ function finalize {
 }
 trap finalize EXIT
 
-LOC="${TMP}/local-mask.mpc"
-GLOB="${TMP}/global-mask.mpc"
-DPI=300 # DPI resolution
-FUZZ=10 # How exact are we with color
-GRID=10 # How many grid points are we testing in either dimension?
 TITLE="${1:-photo}" # What will be the prefix to the output file?
+DPI=300 # DPI resolution
+FUZZ=10 # Extent to which we tolerate colors that don't exactly match
+GRID=8 # How many grid lines are we testing in either dimension?
+LMASK="${TMP}/local-mask.mpc"
+GMASK="${TMP}/global-mask.mpc"
 
-# Scan an image if the ${INPUT} variable is empty
+# Scan an image, but only if the ${INPUT} variable is empty
 if [ -z "${INPUT:-}" ] ; then
     INPUT="${TMP}/scan.pnm"
     echo "Starting up scanner..." >&2
@@ -39,20 +42,20 @@ fi
 convert ${INPUT} -fuzz ${FUZZ}% \
     -fill none -draw "matte 0,0 floodfill" \
     -fill red +opaque none \
-    ${GLOB}
+    ${GMASK}
 
-# If there are already pictures called `${TITLE}${NUMBER}.jpg` in the current
+# If there are already pictures called `${TITLE}-${NUMBER}.jpg` in the current
 # directory, we will make sure that our number is one higher
 NUMBER=$((1 + $( echo ${TITLE}-0.jpg ${TITLE}-*.jpg \
     | tr ' ' '\n' | sed -n "s|${TITLE}-\([0-9]\+\).jpg|\1|p" \
     | sort -g | tail -n 1) ))
 
 # Now we try to find each individual photo by looping over a grid
-IFS=' ' read -r WIDTH HEIGHT Xd Yd <<< $( convert ${GLOB} -format "%w %h %[fx:trunc(w/${GRID})] %[fx:trunc(h/${GRID})]" info: )
+IFS=' ' read -r WIDTH HEIGHT Xd Yd <<< $( convert ${GMASK} -format "%w %h %[fx:trunc(w/${GRID})] %[fx:trunc(h/${GRID})]" info: )
 for((X=${Xd};X<${WIDTH};X=${X}+${Xd})); do for((Y=${Yd};Y<${HEIGHT};Y=${Y}+${Yd})); do
 
     # If the color at this position is not transparent, we found a picture!
-    if [ $(convert ${GLOB} -format "%[fx:u.p{${X},${Y}}==none]" info:) -eq 0 ]; then
+    if [ $(convert ${GMASK} -format "%[fx:u.p{${X},${Y}}==none]" info:) -eq 0 ]; then
         OUTPUT="${TITLE}-${NUMBER}.jpg"
 
         if [ -f "$OUTPUT" ]; then
@@ -60,23 +63,23 @@ for((X=${Xd};X<${WIDTH};X=${X}+${Xd})); do for((Y=${Yd};Y<${HEIGHT};Y=${Y}+${Yd}
             exit 1
         fi
        
-        # Create local mask by making only the current region opaque
-        convert ${GLOB} -fuzz ${FUZZ}% \
+        # Create local mask by keeping only the current region opaque
+        convert ${GMASK} -fuzz ${FUZZ}% \
             -fill white -draw "color ${X},${Y} floodfill" \
             +transparent white \
-            ${LOC}
+            ${LMASK}
 
         # Compose the local mask with the scan, then trim and de-rotate
         echo "Writing ${OUTPUT}..." >&2
         convert ${INPUT} -alpha on \
-            ${LOC} -compose Dst_In -composite \
+            ${LMASK} -compose Dst_In -composite \
             -background white -alpha remove \
             -trim -deskew 40% -trim +repage \
             ${OUTPUT}
 
         # Remove current region from the global mask so that it won't be found again
-        convert ${GLOB} -fuzz ${FUZZ}% \
-            -fill none -draw "matte ${X},${Y} floodfill" ${GLOB}
+        convert ${GMASK} -fuzz ${FUZZ}% \
+            -fill none -draw "matte ${X},${Y} floodfill" ${GMASK}
 
         NUMBER=$((${NUMBER}+1))
     fi
