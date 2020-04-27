@@ -14,27 +14,29 @@ function finalize {
 }
 trap finalize EXIT
 
-INPUT="${TMP}/scan.pnm"
 LOC="${TMP}/local-mask.mpc"
 GLOB="${TMP}/global-mask.mpc"
 DPI=300 # DPI resolution
 FUZZ=10 # How exact are we with color
 GRID=6 # How many grid points are we testing in either dimension?
-TITLE="${1}" # What is the title of the output file?
+TITLE="${1:-}" # What is the title of the output file?
 
 if [ -z "${TITLE}" ]; then
     echo "No title given!"
     exit 1
 fi
 
-# Scan the original image
-echo "Starting up scanner..."
-scanimage \
-    --progress \
-    --resolution ${DPI} \
-    -l 2 -t 2 -x 214 -y 296 \
-    --format pnm > ${INPUT}
-echo "Scan finished. Now cropping and de-rotating..."
+# Scan an image if the $INPUT variable is empty
+if [ -z "${INPUT:-}" ] ; then
+    INPUT="${TMP}/scan.pnm"
+    echo "Starting up scanner..."
+    scanimage \
+        --progress \
+        --resolution ${DPI} \
+        -l 2 -t 2 -x 214 -y 296 \
+        --format pnm > ${INPUT}
+    echo "Scan finished. Now cropping and de-rotating..."
+fi
 
 # Make a mask such that the background of the scan is transparent and
 # everything else is plain red
