@@ -47,13 +47,11 @@ convert ${INPUT} -fuzz ${FUZZ}% \
 
 # Now we try to find each individual photo by looping over a grid
 N=1
-for((I=1; I < ${GRID}; I++)); do for((J=1; J < ${GRID}; J++)); do
-
-    X=$(convert ${GLOB} -format "%[fx:round(${I}/${GRID}*w)]" info:)
-    Y=$(convert ${GLOB} -format "%[fx:round(${J}/${GRID}*h)]" info:)
+IFS=' ' read -r WIDTH HEIGHT Xd Yd <<< $( convert ${GLOB} -format "%w %h %[fx:trunc(w/${GRID})] %[fx:trunc(h/${GRID})]" info: )
+for((X=${Xd};X<${WIDTH};X=${X}+${Xd})); do for((Y=${Yd};Y<${HEIGHT};Y=${Y}+${Yd})); do
 
     # If the color at this position is not transparent, we found a picture!
-    if [ $(convert ${GLOB} -format "%[fx:u.p{$X,$Y}==none]" info:) -eq 0 ]; then
+    if [ $(convert ${GLOB} -format "%[fx:u.p{${X},${Y}}==none]" info:) -eq 0 ]; then
         OUTPUT="${TITLE}-${N}.jpg"
 
         if [ -f "$OUTPUT" ]; then
@@ -63,7 +61,7 @@ for((I=1; I < ${GRID}; I++)); do for((J=1; J < ${GRID}; J++)); do
        
         # Create local mask by making only the current region opaque
         convert ${GLOB} -fuzz ${FUZZ}% \
-            -fill white -draw "color $X,$Y floodfill" \
+            -fill white -draw "color ${X},${Y} floodfill" \
             +transparent white \
             ${LOC}
 
@@ -77,7 +75,7 @@ for((I=1; I < ${GRID}; I++)); do for((J=1; J < ${GRID}; J++)); do
 
         # Remove current region from the global mask so that it won't be found again
         convert ${GLOB} -fuzz ${FUZZ}% \
-            -fill none -draw "matte $X,$Y floodfill" ${GLOB}
+            -fill none -draw "matte ${X},${Y} floodfill" ${GLOB}
 
         N=$(($N+1))
     fi
