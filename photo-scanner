@@ -17,10 +17,10 @@ function finalize {
 }
 trap finalize EXIT
 
-TITLE="${1:-photo}" # What will be the prefix to the output file?
-DPI=300 # DPI resolution
-FUZZ=10 # Extent to which we tolerate colors that don't exactly match
-GRID=8 # How many grid lines are we testing in either dimension?
+TITLE="$(echo "${@:-photo}" | tr ' ' -)" # What will be the prefix to the output file?
+DPI="${DPI:-300}" # DPI resolution
+FUZZ="${FUZZ:-10}" # Extent to which we tolerate colors that don't exactly match
+GRID="${GRID:-8}" # How many grid lines are we testing in either dimension?
 LMASK="${TMP}/local-mask.mpc"
 GMASK="${TMP}/global-mask.mpc"
 
