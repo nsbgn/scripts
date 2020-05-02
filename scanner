@@ -1,16 +1,24 @@
 #!/bin/bash
-# Utility to quickly scan black-and-white documents
+# Utility to quickly scan black-and-white documents and save them heavily
+# compressed
 # https://askubuntu.com/questions/106769/scanning-from-terminal
 # https://manpages.ubuntu.com/manpages/bionic/en/man1/scanimage.1.html
 
 set -euo pipefail
 IFS=$'\n\t'
 
-DPI="${DPI:-300}" # DPI resolution
+# Make a temporary directory for this run, and make sure it will get deleted
+TMP=$(mktemp -d "${TMPDIR:-/tmp/}$(basename $0).XXXXX")
+function finalize {
+    rm -rf "${TMP}"
+}
+trap finalize EXIT
+
+DPI="${DPI:-150}" # DPI resolution
 FUZZ="${FUZZ:-10}" # Extent to which we tolerate colors that don't exactly match
 TITLE="$(echo "${@:-document}" | tr ' ' -)" # What will be the prefix to the output file?
 if ! (echo "$TITLE" | grep -q '^[0-9]\{8\}'); then
-    echo "Title does not include a date, inserting current date..." >&2
+    echo "Title \"${TITLE}\" does not include a date, inserting current date..." >&2
     TITLE="$(date +'%Y%m%d')-$TITLE"
 fi
 
@@ -20,17 +28,25 @@ NUMBER=$((1 + $( echo ${TITLE}-0.png ${TITLE}-*.png \
     | tr ' ' '\n' | sed -n "s|${TITLE}-\([0-9]\+\).png|\1|p" \
     | sort -g | tail -n 1) ))
 
-
-scanimage \
+# Scan an image, but only if the ${INPUT} variable is empty
+if [ -z "${INPUT:-}" ] ; then
+    INPUT="${TMP}/scan.pnm"
+    echo "Starting up scanner..." >&2
+    scanimage \
         --progress \
         --resolution ${DPI} \
-        -l 0 -t 0 -x 215 -y 297 \
-        --format pnm \
-    | convert \
-        -strip \
-        -colorspace gray \
-        -sigmoidal-contrast 10,50% \
-        -resize 1000x \
-        -posterize 8 \
-        -define png:compression-level=9 \
-        pnm:- "PNG8:${TITLE}-${NUMBER}.png"
+        -l 2 -t 2 -x 213 -y 295 \
+        --format pnm > ${INPUT} \
+    && (echo "Scan finished." >&2) \
+    || (echo "Scan failed. Exiting..." >&2 ; exit 1)
+fi
+
+# Compress the image
+convert \
+    -strip \
+    -colorspace gray \
+    -sigmoidal-contrast 10,50% \
+    -resize 1000x \
+    -posterize 8 \
+    "${INPUT}" "PNG8:${TITLE}-${NUMBER}.png"
+optipng "${TITLE}-${NUMBER}.png"
