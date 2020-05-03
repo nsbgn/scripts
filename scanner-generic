@@ -1,0 +1,178 @@
+#!/bin/bash
+# Utility for making quick, sensible scans. Documents are monochrome and
+# heavily compressed, whereas photographs are automatically separated, cropped
+# and derotated. `fmwconcepts.com/imagemagick/multicrop` was an inspiration,
+# but this is written from scratch since multicrop is non-free.
+#
+# See also:
+# - https://askubuntu.com/questions/106769/scanning-from-terminal
+# - https://manpages.ubuntu.com/manpages/bionic/en/man1/scanimage.1.html
+# - https://imagemagick.org/
+
+set -euo pipefail
+IFS=$'\n\t'
+
+TMP=$(mktemp -d "${TMPDIR:-/tmp}/$(basename $0).XXXXX")
+function finalize {
+    rm -rf "${TMP}"
+}
+trap finalize EXIT
+
+# SETTING PARAMETERS #########################################################
+
+DEFAULT_DPI=150
+DEFAULT_FUZZ=10
+DEFAULT_GRID=8
+DEFAULT_SCAN_TYPE=document
+DEFAULT_EXT=png
+USAGE="$(basename "$0") [-d|--dpi N] [-f|--fuzz N] [-g|--grid N] 
+    [-i|--input FILE] [--document|--photo] [TITLE]...
+
+where:
+    -d|--dpi [N]   Density resolution of scan (default: ${DEFAULT_DPI})
+    -f|--fuzz [N]  Degree at which to tolerate non-exact color matches (default: ${DEFAULT_FUZZ})
+    -g|--grid [N]  Number of grid lines for finding individual photos (default: ${DEFAULT_GRID})
+    --document     Interpret scan as containing a document (default)
+    --photo        Interpret scan as containing photographs
+    --input [FILE] Skip scanning, only process image given in FILE"
+
+POSITIONALS=()
+while [[ $# -gt 0 ]]; do
+    case "${1}" in
+        -h|--help)
+            echo "${USAGE}" >&2
+            exit 0
+        ;;
+        -d|--dpi)
+            DPI="${2}"
+            shift
+            shift
+        ;;
+        -i|--input)
+            INPUT="${2}"
+            shift
+            shift
+        ;;
+        --photo)
+            SCAN_TYPE=photo
+            EXT=jpg
+            DEFAULT_DPI=300
+            shift
+        ;;
+        --document)
+            SCAN_TYPE=document
+            EXT=png
+            DEFAULT_DPI=150
+            shift
+        ;;
+        -*)
+            echo "Unknown option ${1}" >&2
+            exit 1
+        ;;
+        *)
+            POSITIONALS+=("$1")
+            shift
+        ;;
+    esac
+done
+
+DPI="${DPI:-${DEFAULT_DPI}}"
+SCAN_TYPE="${SCAN_TYPE:-${DEFAULT_SCAN_TYPE}}"
+TITLE="${POSITIONALS[@]:-${SCAN_TYPE}}"
+EXT="${EXT:-${DEFAULT_EXT}}"
+FUZZ="${FUZZ:-${DEFAULT_FUZZ}}"
+GRID="${GRID:-${DEFAULT_GRID}}"
+
+# If there are already pictures called `${TITLE}-${NUMBER}.${EXT}` in the
+# current directory, we will make sure that our number is one higher
+NUMBER=$((1 + $( echo ${TITLE}-0.${EXT} ${TITLE}-*.${EXT} \
+    | tr ' ' '\n' | sed -n "s|${TITLE}-\([0-9]\+\).${EXT}|\1|p" \
+    | sort -g | tail -n 1) ))
+
+
+# SCANNING ##################################################################
+
+# Scan an image, but only if the ${INPUT} variable is empty
+if [ -z "${INPUT:-}" ] ; then
+    INPUT="${TMP}/scan.pnm"
+    echo "Starting up scanner..." >&2
+    scanimage \
+        --progress \
+        --resolution ${DPI} \
+        -l 2 -t 2 -x 213 -y 295 \
+        --format pnm > "${INPUT}" \
+    && (echo "Scan finished." >&2) \
+    || (echo "Scan failed. Exiting..." >&2 ; exit 1)
+fi
+
+
+# IMAGE PROCESSING ###########################################################
+
+if [ "${SCAN_TYPE}" -eq "document" ]; then
+
+    echo "Compressing image..." >&2
+
+    OUTPUT="${TITLE}-${NUMBER}.${EXT}"
+    convert \
+        -strip \
+        -colorspace gray \
+        -sigmoidal-contrast 10,50% \
+        -resize 1000x \
+        -posterize 8 \
+        "${INPUT}" PNG8:"${OUTPUT}"
+    optipng "${OUTPUT}"
+
+    echo "Wrote \"${OUTPUT}\"..." >&2
+
+elif [ "${SCAN_TYPE}" -eq "photo" ]; then
+
+    echo "Separating, cropping, de-rotating and compressing images..." >&2
+
+    LMASK="${TMP}/local-mask.mpc"
+    GMASK="${TMP}/global-mask.mpc"
+
+    # Make a mask such that the background of the scan is transparent and
+    # everything else is plain red
+    convert ${INPUT} -fuzz ${FUZZ}% \
+        -fill none -draw "matte 0,0 floodfill" \
+        -fill red +opaque none \
+        "${GMASK}"
+
+    # Now we try to find each individual photo by looping over a grid
+    IFS=' ' read -r WIDTH HEIGHT Xd Yd <<< $( convert ${GMASK} -format "%w %h %[fx:trunc(w/${GRID})] %[fx:trunc(h/${GRID})]" info: )
+    for((X=${Xd};X<${WIDTH};X=${X}+${Xd})); do
+    for((Y=${Yd};Y<${HEIGHT};Y=${Y}+${Yd})); do
+
+        # If the color at this position is not transparent, we found a picture!
+        if [ $(convert "${GMASK}" -format "%[fx:u.p{${X},${Y}}==none]" info:) -eq 0 ]; then
+
+            # Create local mask by keeping only the current region opaque
+            convert ${GMASK} -fuzz ${FUZZ}% \
+                -fill white -draw "color ${X},${Y} floodfill" \
+                +transparent white \
+                "${LMASK}"
+
+            # Compose that local mask with input, then trim & de-rotate for output
+            OUTPUT="${TITLE}-${NUMBER}.${EXT}"
+            convert "${INPUT}" -alpha on \
+                ${LMASK} -compose Dst_In -composite \
+                -background white -alpha remove \
+                -trim -deskew 40% -trim +repage \
+                "${OUTPUT}"
+            echo "Wrote \"${OUTPUT}\"..." >&2
+
+            # Remove current region from global mask so that it won't be refound
+            convert "${GMASK}" -fuzz ${FUZZ}% \
+                -fill none -draw "matte ${X},${Y} floodfill" "${GMASK}"
+
+            NUMBER=$((${NUMBER}+1))
+        fi
+    done
+    done
+
+else
+
+    echo "Unknown scan type ${SCAN_TYPE}." >&2
+    exit 1
+
+fi
