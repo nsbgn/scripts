@@ -37,8 +37,6 @@ Other than that, I have:
 - [block](block): Easily blocking websites through `/etc/hosts`.
 - [printer](printer): Print PDFs as double-sided booklets on cheap printers 
   without automatic double-sided printing.
-- [scanner](scanner): My default, barebones scanner command for low-res, 
-  black-and-white scans.
-- [photo-scanner](photo-scanner): The command I use for scanning photographs. 
-  It automatically separates multiple pictures, and it crops and de-rotates 
-  them.
+- [scanner](scanner): The command I use for making quick scans. Photographs 
+  are automatically separated, cropped, and de-rotated, whereas documents are 
+  made black-and-white and heavily compressed.
