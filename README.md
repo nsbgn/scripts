@@ -8,18 +8,13 @@ you please. I'm fond of using [dmenu](http://tools.suckless.org/dmenu/) /
 [jq](https://stedolan.github.io/jq/), because they make quick DIY scripts 
 easy.
 
-Currently, the repository contains the following dmenu-based tools:
+Currently, the repository contains the following tools:
 
 - [dmenu-mpv](dmenu-mpv): An interface to [mpv](https://mpv.io/), as a plain 
   music player that simply offers a shuffled list of full albums to play.
 - [dmenu-pass](dmenu-pass): An interface to 
   [pass](http://www.zx2c4.com/projects/password-store/), as a password 
   manager.
-- [dmenu-json](dmenu-json): A script to construct dmenus with submenus defined 
-  in JSON.
-
-Other than that, I have:
-
 - [xcwd.sh](xcwd.sh): an alternative to 
   [xcwd](https://github.com/schischi/xcwd), 
   [lastcwd](https://github.com/wknapik/lastcwd) and

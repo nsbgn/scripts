@@ -1,27 +1,15 @@
 #!/bin/bash
 # System menu using dmenu
 
-echo '{   "prompt": "System:"
-,   "entries":
-        [   { "id": "lock"
-            , "command": "i3lock -c 000000 --ignore-empty-password" }
-        ,   { "id": "audio"
-            , "command": "pavucontrol" }
-        ,   { "id": "display"
-            , "command": "arandr" }
-        ,   { "id": "system"
-            , "entries": 
-                [   { "id": "log out"
-                    , "command": "i3-msg exit" }
-                ,   { "id": "reload"
-                    , "command": "i3-msg restart" }
-                ,   { "id": "reboot"
-                    , "command": "dbus-send --system --print-reply --dest=org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager.Reboot boolean:true" }
-                ,   { "id": "suspend"
-                    , "command": "dbus-send --system --print-reply --dest=org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager.Suspend boolean:true" }
-                ,   { "id": "shut down"
-                    , "command": "dbus-send --system --print-reply --dest=org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager.PowerOff boolean:true" }
-                ]
-            }
-        ]
-}' | dmenu-json
+CMDS='
+{   "lock": "i3lock -c 000000 --ignore-empty-password"
+,   "audio": "pavucontrol"
+,   "display": "arandr"
+,   "printer": "system-config-printer"
+,   "log out": "i3-msg exit"
+,   "reboot": "systemctl restart"
+,   "shutdown": "systemctl poweroff"
+}'
+
+CHOICE="$(jq -r 'to_entries[] | .key' <<<${CMDS} | dmenu -p 'System:' $DMENU_ARGS)"
+jq -r --exit-status --arg s "${CHOICE}" '.[$s]' <<<${CMDS} | sh 2> /dev/null
