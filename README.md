@@ -15,6 +15,8 @@ Currently, the repository contains the following tools:
 - [dmenu-pass](dmenu-pass): An interface to 
   [pass](http://www.zx2c4.com/projects/password-store/), as a password 
   manager.
+- [find-pandoc](find-pandoc): A way to find Markdown files based on their 
+  Pandoc metadata blocks.
 - [xcwd.sh](xcwd.sh): an alternative to 
   [xcwd](https://github.com/schischi/xcwd), 
   [lastcwd](https://github.com/wknapik/lastcwd) and
