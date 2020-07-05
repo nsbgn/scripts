@@ -37,3 +37,5 @@ Currently, the repository contains the following tools:
 - [scanner](scanner): The command I use for making quick scans. Photographs 
   are automatically separated, cropped, and de-rotated, whereas documents are 
   made black-and-white and heavily compressed.
+- [mom](mom): A script to execute a command in the current directory, then in 
+  the parent directory, etcetera, until it succeeds.
