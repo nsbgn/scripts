@@ -28,7 +28,7 @@ def make_file(
         title=title or '',
         date=date.strftime('%Y-%m-%d'),
         uuid=uuid.uuid4(),
-        tags=', '.join(tags)
+        tags=', '.join(tags or [])
     )
 
     cmd = os.environ['EDITOR'] or 'vi'
