@@ -1,8 +1,8 @@
 Scripts
 ===============================================================================
 
-Here you will find nifty scripts I wrote to make myself happier. I tried to 
-make them very small and reusable, so have a look around and do with them as 
+Here you will find nifty scripts I wrote to make my life easier. I tried to 
+make them small and easy to change, so have a look around and do with them as 
 you please. I'm fond of using [dmenu](http://tools.suckless.org/dmenu/) / 
 [rofi](https://github.com/DaveDavenport/rofi) and 
 [jq](https://stedolan.github.io/jq/), because they make quick DIY scripts 
@@ -15,8 +15,10 @@ Currently, the repository contains the following tools:
 - [dmenu-pass](dmenu-pass): An interface to 
   [pass](http://www.zx2c4.com/projects/password-store/), as a password 
   manager.
-- [find-pandoc](find-pandoc): A way to find Markdown files based on their 
-  Pandoc metadata blocks.
+- [pdentry](pdentry): Creates an empty Markdown file with the Pandoc metadata 
+  partially filled in based on what I typically want to set.
+- [pdfind](pdfind): A way to find Markdown files based on their Pandoc 
+  metadata blocks.
 - [xcwd.sh](xcwd.sh): an alternative to 
   [xcwd](https://github.com/schischi/xcwd), 
   [lastcwd](https://github.com/wknapik/lastcwd) and

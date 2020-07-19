@@ -3,7 +3,7 @@
 # syntax to find them. 
 #
 # Example:
-#   find-pandoc '.author=="nsv"'
+#   pdfind '.author=="nsv"'
 
 if [ ! -z "${@:-}" ]; then
     # I am using `yj` to read the pandoc metadata, because I reckon it's faster
