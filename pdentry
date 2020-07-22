@@ -6,6 +6,7 @@ import os
 import argparse
 import uuid
 import subprocess
+import dateutil.parser
 from datetime import datetime
 from pathlib import Path
 from unidecode import unidecode
@@ -69,6 +70,11 @@ parser.add_argument(
     help='set the author',
 )
 parser.add_argument(
+    '-d', '--date',
+    type=dateutil.parser.parse,
+    help='set the date',
+)
+parser.add_argument(
     '-t', '--tag',
     action='append',
     help='add a tag',
@@ -99,7 +105,7 @@ args = parser.parse_args()
 make_file(
     title=' '.join(args.title),
     author=args.author or os.environ['USER'] or 'Anonymous',
-    date=datetime.now(),
+    date=args.date or datetime.now(),
     tags=args.tag,
     directory=args.path or Path('.'),
     add_date=not args.no_date,
