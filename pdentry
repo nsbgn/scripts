@@ -50,10 +50,10 @@ def make_file(
                 f.write(text)
 
         if open_file:
-            subprocess.run([cmd, str(path)], encoding='utf8')
+            subprocess.run([cmd, '+100', str(path)], encoding='utf8')
 
     elif open_file:
-        subprocess.run(cmd, input=text, encoding='utf8')
+        subprocess.run([cmd, '+100'], input=text, encoding='utf8')
 
 
 parser = argparse.ArgumentParser(
