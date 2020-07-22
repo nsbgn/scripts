@@ -7,13 +7,60 @@ import argparse
 import uuid
 import subprocess
 import dateutil.parser
+import urllib.request
 from datetime import datetime
 from pathlib import Path
 from unidecode import unidecode
 
 
+forbidden_classes = ['lees-ook', 'article__published-in']
+
+
+def readable(url):
+    from breadability.readable import Article
+    html = urllib.request.urlopen(url).read()
+    doc = Article(html, url=url)
+    return ''.join(mdl(doc.readable_dom))
+
+
+def mdl(node):
+
+    output = []
+
+    classes = node.attrib.get('class', '').split(' ')
+    if not any(c in forbidden_classes for c in classes):
+
+        if node.text and not node.text.isspace():
+            text = node.text
+            # output.append('<' + node.tag + str(node.attrib) + '>')
+            if node.tag == 'em':
+                text = '*' + text + '*'
+            elif node.tag == 'strong':
+                text = '**' + text + '**'
+            elif node.tag == 'h1':
+                text = '# ' + text + '\n'
+            elif node.tag == 'h2':
+                text = '## ' + text + '\n'
+            elif node.tag == 'h3':
+                text = '### ' + text + '\n'
+
+            output.append(text)
+
+        for c in node.getchildren():
+            for string in mdl(c):
+                output.append(string)
+
+        if node.tag == 'p':
+            output.append('\n\n')
+
+        if node.tail and not node.tail.isspace():
+            output.append(node.tail)
+
+    return output
+
+
 def make_file(
-        title, author, date, directory, tags=[],
+        title, author, date, directory, tags=[], source=None,
         add_date=True, create_file=True, open_file=True):
 
     text = (
@@ -23,14 +70,19 @@ def make_file(
         'author: {author}\n'
         'uuid: {uuid}\n'
         'tags: [{tags}]\n'
+        '{source}'
         '---\n\n'
     ).format(
         author=author,
         title=title or '',
         date=date.strftime('%Y-%m-%d'),
         uuid=uuid.uuid4(),
-        tags=', '.join(tags or [])
+        tags=', '.join(tags or []),
+        source='source: "' + source + '"\n' if source else ''
     )
+
+    if source:
+        text += readable(source)
 
     cmd = os.environ['EDITOR'] or 'vi'
 
@@ -89,6 +141,10 @@ parser.add_argument(
     help='do not prefix file with current date',
     action='store_true'
 )
+parser.add_argument(
+    '-s', '--source',
+    help='add a webpage as source and parse it to fill the markdown',
+)
 group = parser.add_mutually_exclusive_group()
 group.add_argument(
     '-c', '--only-create',
@@ -110,5 +166,6 @@ make_file(
     directory=args.path or Path('.'),
     add_date=not args.no_date,
     create_file=not args.only_open,
-    open_file=not args.only_create
+    open_file=not args.only_create,
+    source=args.source
 )
