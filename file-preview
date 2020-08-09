@@ -1,0 +1,37 @@
+#!/bin/sh
+# Shows a text preview of a file.
+
+[ -z "$1" ] && exit 1
+
+if [ -z "${FANCY_PREVIEW}" ]; then
+    head -n 80 "$1"
+    exit
+fi
+
+FILE="${1}"
+EXT="$(echo "${FILE##*.}" | tr '[:upper:]' '[:lower:]')"
+
+case "$EXT" in
+    a|ace|alz|arc|arj|bz|bz2|cab|cpio|deb|gz|jar|lha|lz|lzh|lzma|lzo|rpm|rz|\
+    t7z|tar|tbz|tbz2|tgz|tlz|txz|tZ|tzo|war|xpi|xz|Z|zip) atool --list -- "$FILE";;
+    rar) unrar lt -p- -- "$FILE";;
+    7z) 7z l -p -- "$FILE";;
+    htm|html|xhtml) elinks -dump "$FILE";;
+    odt|ods|odp|sxw) odt2txt "$FILE" | fmt --width=72;;
+    docx) docx2txt < "$FILE" | fmt --width=72;;
+    doc) catdoc "$FILE" | fmt --width=72;;
+    pdf) pdftotext -l 10 -nopgbrk "$FILE" - | fmt --width=72;;
+    epub) einfo "$FILE";;
+    torrent) transmission-show "$FILE";;
+    jpg|jpeg|gif|png|tiff|bmp|svg)
+        #/usr/bin/w3m -o 'ext_image_viewer=off' "$FILE";;
+        chafa --work=1 --symbols=block --fill=block --stretch --colors=256 --size "$(expr $(tput cols) \* 2 / 5)x" "$FILE";;
+    mkv|mp4|mka|mp3|mp4|wav|flac|webm) 
+        exiftool "$FILE"
+        #ffmpegthumbnailer -q0 -i "$FILE" -o - -c png -f \
+        #    | chafa  --work=1 --symbols=block --fill=block --stretch --colors=256 --size "$(expr $(tput cols) \* 2 / 5)x" -
+        ;;
+    *) bat --style=plain --italic-text=always --decorations=always --color=always "$1" # (/usr/bin/highlight -F user -O ansi "$1" || cat "$1");; # | fmt --split-only --width=79;;
+esac
+
+# For binary: hexyl --length $((40*16))
