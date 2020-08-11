@@ -13,19 +13,20 @@ for F in "${@}"; do
     else
         EXTENSION="$(echo "${F##*.}" | tr '[:upper:]' '[:lower:]')"
 
+        # File types for which we can generate a template (nonstandard so comes
+        # first for graceful degradation)
+        TEMPLATE="$(find -L "$TEMPLATE_DIR/exec" \
+            -maxdepth 1 -type f -name '*'".$EXTENSION" -print -quit | grep .)"
+        if [ "$?" -eq 0 ]; then
+            "$TEMPLATE" "$F" > "$F"
+            exit 0
+        fi
+
         # File types for which there is a template
         TEMPLATE="$(find -L "$TEMPLATE_DIR" \
             -maxdepth 1 -type f -name '*'".$EXTENSION" -print -quit | grep .)"
         if [ "$?" -eq 0 ]; then
             cp "$TEMPLATE" "$F"
-            exit 0
-        fi
-
-        # File types for which we can generate a template 
-        TEMPLATE="$(find -L "$TEMPLATE_DIR/exec" \
-            -maxdepth 1 -type f -name '*'".$EXTENSION" -print -quit | grep .)"
-        if [ "$?" -eq 0 ]; then
-            "$TEMPLATE" "$F" > "$F"
             exit 0
         fi
 
