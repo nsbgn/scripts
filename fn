@@ -1,0 +1,15 @@
+#!/bin/bash
+# Format a string as an unthreatening filename: add the date of today, convert
+# to ASCII, and remove spaces
+# Usage: 
+#   touch $(fn alles außerhalb unicode)
+set -euo pipefail
+IFS=$'\n\t'
+
+TITLE=$(echo "${@}" \
+    | iconv -f utf-8 -t ascii//translit \
+    | tr --squeeze-repeats ' ' '-')
+
+if ! (echo "${TITLE}" | grep -q '^[0-9]\{8\}'); then
+    echo "$(date +'%Y%m%d')-${TITLE}"
+fi
