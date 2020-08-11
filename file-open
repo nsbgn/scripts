@@ -3,19 +3,14 @@
 
 f="${1}"
 
-# Suppress terminal output?
-
-# Test if we are running within an X session. If so, hide the terminal emulator
-# used to spawn this operation until it's finished.
-# Inspired by https://github.com/salman-abedin/devour
+# Test if we are running within an X session; if so, fork the process and
+# redirect the output so the terminal emulator is still available for other
+# tasks.
 function gui {
     if xset q &>/dev/null; then
-        ID=$(xdo id)
-        xdo hide
-        ("$@" > /dev/null 2>&1)
-        xdo show "$ID"
+        ("$@" > /dev/null 2>&1 ) &
     else
-        ("$@" > /dev/null 2>&1)
+        "$@"
     fi
 }
 
