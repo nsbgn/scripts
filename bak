@@ -1,4 +1,7 @@
 #!/bin/bash
+# This script is one of the messier ones. I'll probably rewrite it at some
+# point.
+#
 # I use rsync to keep my files synchronised across various devices --- through
 # SSH, to SD cards, etcetera. I keep a JSON file to keep this organised. It
 # might seem a bit roundabout, but it feels comfier to me than a bare shell

@@ -15,9 +15,7 @@ Currently, the repository contains the following tools:
 - [dmenu-pass](dmenu-pass): An interface to 
   [pass](http://www.zx2c4.com/projects/password-store/), as a password 
   manager.
-- [pdentry](pdentry): Creates an empty Markdown file with the Pandoc metadata 
-  partially filled in based on what I typically want to set.
-- [pdfind](pdfind): A way to find Markdown files based on their Pandoc 
+- [panfind](panfind): A way to find Markdown files based on their Pandoc 
   metadata blocks.
 - [xcwd.sh](xcwd.sh): an alternative to 
   [xcwd](https://github.com/schischi/xcwd), 
@@ -34,6 +32,7 @@ Currently, the repository contains the following tools:
   [file-preview](file-preview) do what they say on the tin; just a way to have 
   control over how files are created, previewed and opened from my file 
   manager.
+- [fn](fn) formats text as an unthreatening filename.
 - [thesaurus](thesaurus): Presents a list of related words.
 - [bak](bak): A script to keep my files backed up using 
   [rsync](https://rsync.samba.org/).
@@ -43,5 +42,3 @@ Currently, the repository contains the following tools:
 - [scanner](scanner): The command I use for making quick scans. Photographs 
   are automatically separated, cropped, and de-rotated, whereas documents are 
   made black-and-white and heavily compressed.
-- [mom](mom): A script to execute a command in the current directory, then in 
-  the parent directory, etcetera, until it succeeds.

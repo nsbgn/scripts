@@ -39,7 +39,8 @@ case $(file --dereference --mime-type "$f" -b) in
         mpv --no-audio-display "$f"
         ;;
     image/*) 
-        gui sxiv -a "$f" "$(dirname "$f")"
+        #gui sxiv -a "$f" "$(dirname "$f")"
+        gui mirage "$f"
         ;;
     application/epub+zip) 
         gui mupdf -r 70 "$f" &
