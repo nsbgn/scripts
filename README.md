@@ -33,6 +33,8 @@ Currently, the repository contains the following tools:
   control over how files are created, previewed and opened from my file 
   manager.
 - [fn](fn) formats text as an unthreatening filename.
+- [download-article](download-article) downloads an internet article to a 
+  Markdown file.
 - [thesaurus](thesaurus): Presents a list of related words.
 - [bak](bak): A script to keep my files backed up using 
   [rsync](https://rsync.samba.org/).

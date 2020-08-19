@@ -1,0 +1,136 @@
+#!/usr/bin/env python3
+# This quick script creates a readable Markdown file from an article on the
+# internet, then opens it in your editor to clean it up manually.
+
+import os
+import argparse
+import uuid
+import subprocess
+import dateutil.parser
+import urllib.request
+import pypandoc
+from breadability.readable import Article
+from lxml import etree
+from datetime import datetime
+from pathlib import Path
+from unidecode import unidecode
+
+
+def readable(url):
+    html = urllib.request.urlopen(url).read()
+    doc = Article(html, url=url)
+    node = doc.readable_dom
+    text = etree.tostring(node)
+    return pypandoc.convert_text(text, 'md', format='html')
+
+
+def make_file(
+        title, author, date, directory, tags=[], source=None,
+        add_date=True, create_file=True, open_file=True):
+
+    text = (
+        '---\n'
+        'title: {title}\n'
+        'date: {date}\n'
+        'author: {author}\n'
+        'uuid: {uuid}\n'
+        'tags: [{tags}]\n'
+        '{source}'
+        '---\n\n'
+    ).format(
+        author=author,
+        title=title or '',
+        date=date.strftime('%Y-%m-%d'),
+        uuid=uuid.uuid4(),
+        tags=', '.join(tags or []),
+        source='source: "' + source + '"\n' if source else ''
+    )
+
+    if source:
+        text += readable(source)
+
+    cmd = os.environ['EDITOR'] or 'vi'
+
+    if create_file:
+        directory.mkdir(parents=True, exist_ok=True)
+        fn = unidecode(title).lower().replace(' ', '-').replace('\'', '')
+
+        if add_date:
+            fn = date.strftime('%Y%m%d') + '-' + fn
+
+        path = directory.joinpath(fn + '.md')
+
+        if path.exists():
+            raise FileExistsError()
+        else:
+            with path.open(mode='w') as f:
+                f.write(text)
+
+        if open_file:
+            subprocess.run([cmd, '+100', str(path)], encoding='utf8')
+
+    elif open_file:
+        subprocess.run([cmd, '+100'], input=text, encoding='utf8')
+
+
+parser = argparse.ArgumentParser(
+    description='Create a new Markdown file with a template metadata block.'
+)
+parser.add_argument(
+    'title',
+    metavar='WORD',
+    nargs='+',
+    help='title'
+    )
+parser.add_argument(
+    '-a', '--author',
+    help='set the author',
+)
+parser.add_argument(
+    '-d', '--date',
+    type=dateutil.parser.parse,
+    help='set the date',
+)
+parser.add_argument(
+    '-t', '--tag',
+    action='append',
+    help='add a tag',
+)
+parser.add_argument(
+    '-p', '--path',
+    type=Path,
+    help='put file in given directory'
+)
+parser.add_argument(
+    '-n', '--no-date',
+    help='do not prefix file with current date',
+    action='store_true'
+)
+parser.add_argument(
+    '-s', '--source',
+    help='add a webpage as source and parse it to fill the markdown',
+)
+group = parser.add_mutually_exclusive_group()
+group.add_argument(
+    '-c', '--only-create',
+    help='do not open file in editor after creating',
+    action='store_true'
+)
+group.add_argument(
+    '-o', '--only-open',
+    help='do not create file, only open in editor',
+    action='store_true'
+)
+
+args = parser.parse_args()
+make_file(
+    title=' '.join(args.title),
+    author=args.author or os.environ['USER'] or 'Anonymous',
+    date=args.date or datetime.now(),
+    tags=args.tag,
+    directory=args.path or Path('.'),
+    add_date=not args.no_date,
+    create_file=not args.only_open,
+    open_file=not args.only_create,
+    source=args.source
+)
