@@ -1,13 +1,13 @@
 #!/bin/bash
 # For easily blocking websites through /etc/hosts
 # Example:
-#   block reddit.com old.reddit.com # Block reddit
-#   block -u reddit.com old.reddit.com # Unblock reddit
+#   block reddit.com old.reddit.com # Block old.reddit.com and www.reddit.com
+#   block -u reddit.com # Unblock both subdomains (based on suffix)
 
 function block-host {
     HOST="$1"
     if grep -q "^#\?\s*0.0.0.0\s*[[:alnum:]]*\.\?$HOST" /etc/hosts; then
-        echo "Uncommenting $HOST in /etc/hosts..."
+        echo "Uncommenting \*$HOST in /etc/hosts..."
         sudo sed -i "s/^#\s*\(0.0.0.0\s*[[:alnum:]]*\.\?$HOST\)\s*$/\1/g" /etc/hosts
     else
         NUMBER_OF_DOTS="$(echo "$HOST" | tr -d -c '.' | wc -m)"
@@ -26,7 +26,7 @@ function block-host {
 
 function unblock-host {
     HOST="$1"
-    echo "Commenting $HOST in /etc/hosts..."
+    echo "Commenting \*$HOST in /etc/hosts..."
     sudo sed -i "s/^\s*\(0.0.0.0\s*[[:alnum:]]*\.\?$HOST\)\s*$/#\1/g" /etc/hosts
 }
 
