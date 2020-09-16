@@ -1,0 +1,71 @@
+#!/bin/bash
+# This script makes it easy to drag the focused window through bspwm's tiling
+# tree in an intuitive way.
+#
+# Usage:
+#   bsp-arrange (north|east|south|west)
+#
+# There are basically four actions, plus a nop if we are the root window. These
+# actions depend on the compass direction we move in (a1) compared to the
+# compass direction the window is in relation to its parent (a2).
+#   -   We have to break out of our current parent if a1 already mathces a2
+#   -   If a1 is completly opposite of a2, then we have to move *into* the
+#   brother window
+#   -   Otherwise, we only have to turn the windows
+
+# Find out the angle of compass directions
+function angle {
+    local deg=0 a1="$1" a2="$2"
+    while [ "$deg" -lt 360 -a ! "$a1" == "$a2" ]; do
+        deg=$(($deg + 90))
+        case "$a1" in
+            north) a1=east;;
+            east) a1=south;;
+            south) a1=west;;
+            west) a1=north;;
+        esac
+    done
+    echo "$deg"
+}
+
+# Rotate orientation without rotating children
+function turn {
+    bspc node "$1" --rotate "$((360 - $2))"
+    bspc node "$1#1" --rotate "$(($2))"
+    bspc node "$1#2" --rotate "$(($2))"
+}
+
+# Direction of the window in relation to parent
+function compass {
+    if bspc query -N -n "@parent/1.focused" &> /dev/null; then
+        if bspc query -N -n "@parent.horizontal" &> /dev/null
+        then echo north
+        else echo west
+        fi
+    elif bspc query -N -n "@parent/2.focused" &> /dev/null; then
+        if bspc query -N -n "@parent.horizontal" &> /dev/null
+        then echo south
+        else echo east
+        fi
+    else # If we are the root window
+        return 1
+    fi
+}
+
+dir="$1"
+a=$(angle "$dir" "$(compass)")
+if [ "$a" -eq 0 ]; then
+    bspc node "@parent/parent" --presel-dir "$1"
+    bspc node --to-node "@parent/parent"
+elif [ "$a" -eq 180 ]; then
+    local odir
+    case "$dir" in
+        north|south) odir=west ;;
+        east|west) odir=north ;;
+    esac
+    bspc node "$dir" --presel-dir "$odir"
+    bspc node --to-node "$dir"
+else
+    turn "@parent" "$a"
+fi
+
