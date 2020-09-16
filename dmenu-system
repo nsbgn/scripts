@@ -1,15 +1,22 @@
 #!/bin/bash
 # System menu using dmenu
 
-CMDS='
-{   "lock": "i3lock -c 000000 --ignore-empty-password"
-,   "audio": "pavucontrol"
-,   "display": "arandr"
-,   "printer": "system-config-printer"
-,   "log out": "i3-msg exit"
-,   "reboot": "systemctl restart"
-,   "shutdown": "systemctl poweroff"
-}'
+declare -a NAMES
+declare -A COMMANDS
+function cmd {
+    NAMES+=("$1"); COMMANDS["$1"]="$2"
+}
 
-CHOICE="$(jq -r 'to_entries[] | .key' <<<${CMDS} | dmenu -p 'System:' $DMENU_ARGS)"
-jq -r --exit-status --arg s "${CHOICE}" '.[$s]' <<<${CMDS} | sh 2> /dev/null
+cmd "lock" "i3lock -c 000000 --ignore-empty-password"
+cmd "audio" "pavucontrol"
+cmd "display" "arandr"
+cmd "printer" "system-config-printer"
+cmd "log out" "bspc quit"
+cmd "reboot" "systemctl restart"
+cmd "shutdown" "systemctl poweroff"
+
+key=$(for k in "${NAMES[@]}"; do echo "$k"; done | dmenu -p 'System:')
+if [ ! -z "$key" ]; then
+    sh <<< "${COMMANDS[$key]}"
+fi
+
