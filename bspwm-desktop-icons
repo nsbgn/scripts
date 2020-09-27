@@ -1,8 +1,11 @@
 #!/bin/bash
+# This script continuously changes the name of bspwm's desktops to reflect the
+# contents of the client windows it contains.
+#
+# Note that a bspwm name can be no more than 32 bytes --- this must be taken
+# into account. In particular, when you put a Unicode character at the end of a
+# name such that it is truncated, polybar will freak out.
 set -euo pipefail
-
-# TODO:
-# ps e -N --ppid 1 -o pid,args | grep WINDOWID=12583001 | cut -d' ' -f3 | tail -n 1
 
 jq='
 def icons:
@@ -11,51 +14,33 @@ def icons:
     , "telegram-desktop": "chat"
     }
 ;
-# | map(icons[.] // "?")
 
 [.root | recurse((.firstChild,.secondChild)//empty) | .client//empty | .instanceName]
-    | join("  │  ")
-    | "  " + . + "  "
-    | @html
+    | map(icons[.] // "?")
+    | group_by(.)
+    | map(if length > 1 then "\(length)\(.[0])" else .[0] end)
+    | if . == [] then [" - "] else . end
+    | join(" | ")
+    | " " + . + " "
 '
 
-function icons {
-    local desktop_id="$1"
-    bspc query -T -d "$desktop_id" \
-        | jq -r "$jq"
+function rename {
+    for desktop_id in $@; do
+        bspc desktop "${desktop_id}" --rename "$(
+            bspc query -T -d "${desktop_id}" | jq -r "${jq}"
+        )"
+    done
 }
 
-function node_add {
-    local monitor_id="$1"
-    local desktop_id="$2"
-    local ip_id="$3"
-    local node_id="$4"
-    bspc desktop "$desktop_id" --rename "$(icons "$desktop_id")"
-}
+# Initial renaming
+rename $(bspc query -D)
 
-function node_remove {
-    local monitor_id="$1"
-    local desktop_id="$2"
-    local node_id="$3"
-    bspc desktop "$desktop_id" --rename "$(icons "$desktop_id")"
-}
-
-function node_transfer {
-    local src_monitor_id="$1"
-    local scr_desktop_id="$2"
-    local src_node_id="$3"
-    local dst_monitor_id="$4"
-    local dst_desktop_id="$5"
-    local dst_node_id="$6"
-    bspc desktop "$src_desktop_id" --rename "$(icons "$src_desktop_id")"
-    bspc desktop "$dst_desktop_id" --rename "$(icons "$dst_desktop_id")"
-}
-
-function desktop_add {
-    local monitor_id="$1"
-    local desktop_id="$2"
-    local desktop_name="$3"
-    bspc desktop "$desktop_id" --rename "$(icons "$desktop_id")"
-}
-
-bspc subscribe node_{add,remove,transfer} | while read event; do $event; done
+# ... and change desktop names as we move on
+bspc subscribe desktop_add node_{add,remove,transfer} | while read -a e; do
+    case "${e[0]}" in
+        node_add|node_remove|desktop_add)
+            rename "${e[2]}" ;;
+        node_transfer)
+            rename "${e[2]}" "${e[5]}" ;;
+    esac
+done
