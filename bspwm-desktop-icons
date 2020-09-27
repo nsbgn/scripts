@@ -1,0 +1,61 @@
+#!/bin/bash
+set -euo pipefail
+
+# TODO:
+# ps e -N --ppid 1 -o pid,args | grep WINDOWID=12583001 | cut -d' ' -f3 | tail -n 1
+
+jq='
+def icons:
+    { "urxvt": "term" # ""
+    , "Navigator": "web" # ""
+    , "telegram-desktop": "chat"
+    }
+;
+# | map(icons[.] // "?")
+
+[.root | recurse((.firstChild,.secondChild)//empty) | .client//empty | .instanceName]
+    | join("  │  ")
+    | "  " + . + "  "
+    | @html
+'
+
+function icons {
+    local desktop_id="$1"
+    bspc query -T -d "$desktop_id" \
+        | jq -r "$jq"
+}
+
+function node_add {
+    local monitor_id="$1"
+    local desktop_id="$2"
+    local ip_id="$3"
+    local node_id="$4"
+    bspc desktop "$desktop_id" --rename "$(icons "$desktop_id")"
+}
+
+function node_remove {
+    local monitor_id="$1"
+    local desktop_id="$2"
+    local node_id="$3"
+    bspc desktop "$desktop_id" --rename "$(icons "$desktop_id")"
+}
+
+function node_transfer {
+    local src_monitor_id="$1"
+    local scr_desktop_id="$2"
+    local src_node_id="$3"
+    local dst_monitor_id="$4"
+    local dst_desktop_id="$5"
+    local dst_node_id="$6"
+    bspc desktop "$src_desktop_id" --rename "$(icons "$src_desktop_id")"
+    bspc desktop "$dst_desktop_id" --rename "$(icons "$dst_desktop_id")"
+}
+
+function desktop_add {
+    local monitor_id="$1"
+    local desktop_id="$2"
+    local desktop_name="$3"
+    bspc desktop "$desktop_id" --rename "$(icons "$desktop_id")"
+}
+
+bspc subscribe node_{add,remove,transfer} | while read event; do $event; done
