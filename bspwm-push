@@ -1,9 +1,10 @@
 #!/bin/bash
 # This script makes it easy to drag the focused window through bspwm's tiling
 # tree in an intuitive way.
+# This is still a work-in-progress.
 #
 # Usage:
-#   bsp-arrange (north|east|south|west)
+#   bspwm-push (north|east|south|west)
 #
 # There are basically four actions, plus a nop if we are the root window. These
 # actions depend on the compass direction we move in (a1) compared to the
