@@ -8,6 +8,8 @@
 #
 # Dependencies: 
 #       dmenu, mpv, mpv-mpris, playerctl, xdg-dirs, socat, find, shuf, sort, sed
+#
+#   sudo apt install dbus-x11
 
 
 MUSIC="$(xdg-user-dir MUSIC)"

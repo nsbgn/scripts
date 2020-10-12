@@ -16,9 +16,9 @@
 # working with. To filter out at least some of these cases, we set -N --ppid 1
 # (to say that the process must not be a direct child of the root process)
 
-(echo "$HOME"
+(echo "$HOME"; WINDOWID="$(xdotool getactivewindow)" &&
  ps e -N --ppid 1 --sort=+pid -o pid,args \
   | grep --invert-match xclip \
-  | sed -n "s|^\s*\([0-9]\+\) .*WINDOWID=`xdotool getactivewindow`.*|\\1|p" \
-  | xargs -d'\n' -I{} readlink /proc/{}/cwd 
+  | sed -n "s|^\s*\([0-9]\+\) .*WINDOWID=${WINDOWID}.*|\\1|p" \
+  | xargs -d'\n' -I{} readlink /proc/{}/cwd
 ) | tail -n 1

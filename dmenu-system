@@ -12,7 +12,8 @@ cmd "audio" "pavucontrol"
 cmd "display" "arandr"
 cmd "printer" "system-config-printer"
 cmd "log out" "bspc quit"
-cmd "reboot" "systemctl restart"
+cmd "reload" "pkill -USR1 -x sxhkd; bspc wm -r"
+cmd "reboot" "systemctl reboot"
 cmd "shutdown" "systemctl poweroff"
 
 key=$(for k in "${NAMES[@]}"; do echo "$k"; done | dmenu -p 'System:')

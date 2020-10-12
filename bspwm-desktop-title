@@ -9,14 +9,14 @@ set -euo pipefail
 
 jq='
 def icons:
-    { "urxvt": "term" # ""
-    , "Navigator": "web" # ""
+    { "urxvt": "term"
+    , "Navigator": "web"
     , "telegram-desktop": "chat"
     }
 ;
 
 [.root | recurse((.firstChild,.secondChild)//empty) | .client//empty | .instanceName]
-    | map(icons[.] // "?")
+    | map(icons[.] // "?\(.[0:4])")
     | group_by(.)
     | map(if length > 1 then "\(length)\(.[0])" else .[0] end)
     | if . == [] then [" - "] else . end

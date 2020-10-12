@@ -1,9 +1,10 @@
 #!/bin/bash
-# This script makes sure that empty desktops get cleaned up.
+# Run this script in the background to make sure that `bspwm`s empty desktops
+# get cleaned up.
 set -euo pipefail
 
 bspc subscribe desktop_focus | while read e; do
-    for desktop_id in $(bspc query --desktops --desktop '.!occupied.!focused'); do
+    for desktop_id in $(bspc query -D -d '.!occupied.!focused'); do
         bspc desktop "${desktop_id}" --remove
     done
 done
