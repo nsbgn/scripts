@@ -1,0 +1,47 @@
+#!/bin/bash
+# Utility for making quick scans including OCR. Also check out tiff2pdf.
+set -euo pipefail
+
+DPI=150
+
+TMP=$(mktemp -d "${TMPDIR:-/tmp}/$(basename "$0").XXXXX")
+function finalize {
+    rm -rf "${TMP}"
+}
+trap finalize EXIT
+
+SCANS=()
+while true; do
+    echo "Starting scan..." >&2
+    SCAN="$(mktemp --tmpdir="$TMP" --dry-run "XXXXX.pdf")"
+    scanimage \
+        --progress \
+        --resolution ${DPI} \
+        -l 2 -t 2 -x 213 -y 295 \
+        --format tiff \
+    | convert TIFF:- \
+        -strip \
+        -colorspace gray \
+        -sigmoidal-contrast 20,50% \
+        -posterize 8 \
+        -background white \
+        -page a4 \
+        PDF:- \
+    | ocrmypdf - "$SCAN"
+
+    if [ $? -eq 0 ]; then
+        echo "Scan finished." >&2
+        SCANS+=("${SCAN}")
+    else
+        echo "Scan failed." >&2
+    fi
+
+    read -r -p "Continue scanning? [Y/n]" confirm
+    case $confirm in
+        [nN]*) break ;;
+        *) continue ;;
+    esac
+done
+
+# Combine pages
+pdftk ${SCANS[@]} cat output "$1"
