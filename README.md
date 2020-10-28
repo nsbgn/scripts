@@ -44,3 +44,7 @@ Currently, the repository contains the following tools:
 - [scanner](scanner): The command I use for making quick scans. Photographs 
   are automatically separated, cropped, and de-rotated, whereas documents are 
   made black-and-white and heavily compressed.
+- [diffpic](diffpic): A quick script to identify and delete duplicate or 
+  visually similar images using 
+  [findimagedupes](http://www.jhnc.org/findimagedupes/) and 
+  [sxiv](https://github.com/muennich/sxiv).
