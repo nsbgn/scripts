@@ -1,4 +1,0 @@
-#!/bin/bash
-set -euo pipefail
-
-file-new "$1" && file-open "$1"
