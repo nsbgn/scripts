@@ -2,7 +2,7 @@
 # This quick script provides a way to print paper-efficient, double-sided
 # booklets from PDFs on my cheap printer.
 # Dependencies: 
-#   lp, pandoc, pdfjam, pdfcrop, pdftk, mupdf, github.com/slakkenhuis/snel
+#   lp, pdfjam, pdftk, mupdf, krop
 set -euo pipefail
 IFS=$'\n\t'
 LP_ARGS=(\
@@ -11,13 +11,6 @@ LP_ARGS=(\
     -o "PageSize=A4" \
     -o "media=a4" \
     -o "fit-to-page" \
-)
-
-PANDOC_ARGS=(\
-    --pdf-engine=weasyprint \
-    --css "/usr/local/share/snel/style.css" \
-    --template "/usr/local/share/snel/pandoc/page.html" \
-    --shift-heading-level-by=1 \
 )
 
 # Exit if given printer is unknown. Check `lpstat -e` for available printers
@@ -37,38 +30,30 @@ trap finalize EXIT
 INPUT="$1"
 OUTPUT="$INPUT"
 
-EXT="$(echo "${1##*.}" | tr '[:upper:]' '[:lower:]')"
+# PDFs are cropped before use using a GUI, to get rid of the margins
+INPUT="${OUTPUT}"
+OUTPUT="$(mktemp -p "${TMP}" "XXX.pdf")"
+krop --output "${OUTPUT}" "${INPUT}"
 
-if [ "${EXT}" == "pdf" ]; then
+# This crops the whitespace away automatically
+#echo "Cropping whitespace..." 1>&2
+#INPUT="${OUTPUT}"
+#OUTPUT="$(mktemp -p "${TMP}" "XXX.pdf")"
+#pdfcrop \
+#    --hires \
+#    --noclip \
+#    --margins '17' \
+#    "${INPUT}" "${OUTPUT}"
 
-    # PDFs are cropped before use, since they tend to be intended for A4 paper
-
-    # This crops the whitespace away
-    echo "Cropping whitespace..." 1>&2
-    INPUT="${OUTPUT}"
-    OUTPUT="$(mktemp -p "${TMP}" "XXX.pdf")"
-    pdfcrop \
-        --hires \
-        --noclip \
-        --margins '17' \
-        "${INPUT}" "${OUTPUT}"
-
-
-    # This scales it back to A4 size
-    echo "Scaling back to A4 size..." 1>&2 
-    INPUT="${OUTPUT}"
-    OUTPUT="$(mktemp -p "${TMP}" "XXX.pdf")"
-    pdfjam \
-        --paper 'a4paper' \
-        --fitpaper 'true' \
-        --outfile "${OUTPUT}" \
-        -- "${INPUT}" -
-else
-    # Non-PDFs are converted to PDF using Pandoc
-
-    OUTPUT=$(mktemp -p "${TMP}" "XXX.pdf")
-    pandoc "${PANDOC_ARGS[@]}" -i "${INPUT}" -o "${OUTPUT}"
-fi
+# This scales it back to A4 size
+#echo "Scaling back to A4 size..." 1>&2 
+#INPUT="${OUTPUT}"
+#OUTPUT="$(mktemp -p "${TMP}" "XXX.pdf")"
+#pdfjam \
+#    --paper 'a4paper' \
+#    --fitpaper 'true' \
+#    --outfile "${OUTPUT}" \
+#    -- "${INPUT}" -
 
 # Puts it in booklet form
 echo "Making booklet..." 1>&2
