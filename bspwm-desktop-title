@@ -28,7 +28,7 @@ function rename {
     for desktop_id in $@; do
         bspc desktop "${desktop_id}" --rename "$(
             bspc query -T -d "${desktop_id}" | jq -r "${jq}"
-        )"
+        )" || :
     done
 }
 
