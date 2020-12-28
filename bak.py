@@ -50,6 +50,12 @@ class SyncPair:
             yield join(self.local, f)
 
 
+def confirm(message, default=False):
+    answer = input("{message} [{default}]".format(
+        message=message, default="Y/n" if default else "y/N"))
+    return (not answer and default) or (answer.lower() in ('yes', 'y'))
+
+
 def norm(path):
     return realpath(expanduser(path)) + ("/" if path.endswith("/") else "")
 
@@ -90,7 +96,7 @@ def mount_all(mounts, mount=True):
                    mount=mount)
 
 
-def rsync(sources, dest, dry_run=True, fat32=False, delete_before=False):
+def rsync(dest, sources, dry_run=True, fat32=False, delete_before=False):
     command = ['rsync', '--progress']
 
     if dry_run:
@@ -254,7 +260,7 @@ if __name__ == '__main__':
             mount.get('dir') for mount in mounts if mount.get('default')]
 
     syncs = extract_syncs(config.get('sync'))
-    syncs = filter_syncs(syncs, args.prefixes)
+    syncs = list(filter_syncs(syncs, args.prefixes))
 
     # Figure out what needs to be mounted
     needed_mounts = relevant_mounts((r[2] for r in syncs), mounts)
@@ -270,16 +276,12 @@ if __name__ == '__main__':
         syncs = map(reversed, syncs)
 
     for dest, sources in group_syncs(syncs):
-        logging.warning("rsync {} {}".format(sources, dest))
+        #rsync(dest, sources)
+        if confirm("Are you sure?", default=False):
+            print("okay")
+
+
 
     if args.automount:
         mount_all(to_be_mounted, False)
-
-        # for s in sync:
-        #    if args.push:
-        #        s.rsync()
-
-#    for sync in syncs:
-#        ensure_mounted(sync.remote, mounts)
-#        rsync(sync)
 
