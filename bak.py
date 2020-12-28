@@ -32,7 +32,7 @@ import argparse
 from os.path import expanduser, realpath, ismount, join, split
 
 from collections import defaultdict
-from itertools import groupby, product
+from itertools import product
 # from pathlib import Path
 
 
@@ -66,18 +66,28 @@ def pmount(path, device, keyfile=None, mount=True):
     subprocess.run(command, check=True)
 
 
-def ensure_mounted(path, mounts):
+def relevant_mounts(paths, mounts):
     """
-    Make sure that the remote path is on a known mounted disk.
     """
-    mount = next((mp for mp in mounts if path.startswith(mp.get('dir'))), None)
-    if mount is None:
-        raise Exception("No known mountpoint for path {}".format(path))
 
-    if not ismount(mount.get('dir')):
-        pmount(mount.get('dir'),
-               '/dev/disk/by-uuid/{}'.format(mount.get('uuid')),
-               keyfile=mount.get('keyfile'))
+    result = dict()
+    for path in paths:
+        result.update({
+            m.get('dir'): m for m in mounts if path.startswith(m.get('dir'))
+        })
+    return result.values()
+
+
+def mount_all(mounts, mount=True):
+    """
+    Make sure that the given mounts are mounted.
+    """
+    for mount in mounts:
+        if not ismount(mount.get('dir')):
+            pmount(mount.get('dir'),
+                   '/dev/disk/by-uuid/{}'.format(mount.get('uuid')),
+                   keyfile=mount.get('keyfile'),
+                   mount=mount)
 
 
 def rsync(sources, dest, dry_run=True, fat32=False, delete_before=False):
@@ -217,6 +227,10 @@ if __name__ == '__main__':
     parser.add_argument('--config', default='~/scrapbook/bak.yaml',
                         help="configuration file")
 
+    parser.add_argument(
+        '-m', '--automount', action='store_true',
+        default=False, help="automatically (un)mount devices")
+
     push = parser.add_mutually_exclusive_group(required=True)
     push.add_argument('-o', '--push', action='store_true',
                       help="push changes to remote")
@@ -242,11 +256,24 @@ if __name__ == '__main__':
     syncs = extract_syncs(config.get('sync'))
     syncs = filter_syncs(syncs, args.prefixes)
 
+    # Figure out what needs to be mounted
+    needed_mounts = relevant_mounts((r[2] for r in syncs), mounts)
+    to_be_mounted = list(filter(lambda x: not ismount(x.get('dir')), needed_mounts))
+
+    if args.automount:
+        mount_all(to_be_mounted)
+    elif len(to_be_mounted) != 0:
+        for m in to_be_mounted:
+            logging.error("{} is not mounted".format(m.get('dir')))
+
     if not args.push:
         syncs = map(reversed, syncs)
 
     for dest, sources in group_syncs(syncs):
         logging.warning("rsync {} {}".format(sources, dest))
+
+    if args.automount:
+        mount_all(to_be_mounted, False)
 
         # for s in sync:
         #    if args.push:
