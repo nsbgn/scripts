@@ -142,24 +142,44 @@ def expand_braces(s, pattern=re.compile(r'.*(\{.+?[^\\]\})')):
     return result
 
 
-def grouped_syncs(syncs):
+def group_syncs(syncs):
+    """
+    Group 3-tuples, such that those with the same destination directory end up
+    in the same tuple.
+
+    @param syncs: 3-tuples
+    @returns: iterator of tuples, containing a destination directory and a list
+        of source files
+    """
+
     d = defaultdict(list)
     for src_dir, fn, dest_dir in syncs:
         d[norm(dest_dir)].append(join(src_dir, fn))
     return d.items()
 
 
-def sync_pairs(mapping, prefixes):
+def filter_syncs(syncs, prefixes):
     """
-    Find all local-remote directory pairs that are relevant given the prefixes.
+    Filter 3-tuples such that only those with relevant prefixes on the remote
+    directory are kept.
+
+    @param prefixes: A generator of string prefixes.
+    """
+
+    return filter(
+        lambda s: any(s[2].startswith(norm(p)) for p in prefixes),
+        syncs)
+
+
+def extract_syncs(mapping):
+    """
+    Find all 3-tuples of local directory, filename and remote directory
+    represented by the mapping.
 
     @param mapping: A dictionary mapping files to to one or more remote
         directories.
-    @param prefixes: A generator of string prefixes.
-    @returns: triple of local dir, target basename, and remote dir
+    @returns: tuple of local directory, target basename, and remote directory
     """
-
-    prefixes = [norm(path) for path in prefixes]
 
     for local_repr, remote_reprs in mapping.items():
 
@@ -172,7 +192,6 @@ def sync_pairs(mapping, prefixes):
             path
             for remote_repr in remote_reprs
             for path in expand_braces(remote_repr)
-            if any(norm(path).startswith(prefix) for prefix in prefixes)
         ]
 
         for local_path, remote_dir in product(local_paths, remote_dirs):
@@ -220,12 +239,13 @@ if __name__ == '__main__':
         args.prefixes = [
             mount.get('dir') for mount in mounts if mount.get('default')]
 
-    syncs = sync_pairs(config.get('sync', {}), args.prefixes)
+    syncs = extract_syncs(config.get('sync'))
+    syncs = filter_syncs(syncs, args.prefixes)
 
     if not args.push:
         syncs = map(reversed, syncs)
 
-    for dest, sources in grouped_syncs(syncs):
+    for dest, sources in group_syncs(syncs):
         logging.warning("rsync {} {}".format(sources, dest))
 
         # for s in sync:
