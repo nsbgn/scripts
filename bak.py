@@ -29,9 +29,10 @@ import re
 import yaml
 import logging
 import argparse
-from os.path import expanduser, realpath, ismount, dirname, basename, join
+from os.path import expanduser, realpath, ismount, join, split
 
-from itertools import groupby
+from collections import defaultdict
+from itertools import groupby, product
 # from pathlib import Path
 
 
@@ -79,7 +80,7 @@ def ensure_mounted(path, mounts):
                keyfile=mount.get('keyfile'))
 
 
-def rsync(sync, dry_run=True, fat32=True, delete_before=False):
+def rsync(sources, dest, dry_run=True, fat32=False, delete_before=False):
     command = ['rsync', '--progress']
 
     if dry_run:
@@ -107,20 +108,11 @@ def rsync(sync, dry_run=True, fat32=True, delete_before=False):
         '--exclude=lost+found',
         '--exclude=.Trash-1000'))
 
-    command.extend((join(sync.local, f) for f in sync.files))
-    command.append(sync.remote)
+    command.extend(sources)
+    command.append(dest)
 
     logging.warning(" ".join(command))
     subprocess.run(command, check=True)
-
-
-def group_sync_pairs(sync_pairs):
-    """
-    Group synchronisation pairs such that pairs with the same remote directory
-    and in which the basename is the same in both local and remote.
-    """
-
-    return groupby(sorted(sync_pairs, key=SyncPair.remote), SyncPair.remote)
 
 
 def expand_braces(s, pattern=re.compile(r'.*(\{.+?[^\\]\})')):
@@ -150,38 +142,50 @@ def expand_braces(s, pattern=re.compile(r'.*(\{.+?[^\\]\})')):
     return result
 
 
+def grouped_syncs(syncs):
+    d = defaultdict(list)
+    for src_dir, fn, dest_dir in syncs:
+        d[norm(dest_dir)].append(join(src_dir, fn))
+    return d.items()
+
+
 def sync_pairs(mapping, prefixes):
     """
     Find all local-remote directory pairs that are relevant given the prefixes.
 
-    @param mapping: A dictionary mapping local directories to one or more
-        remote directories.
+    @param mapping: A dictionary mapping files to to one or more remote
+        directories.
     @param prefixes: A generator of string prefixes.
+    @returns: triple of local dir, target basename, and remote dir
     """
 
     prefixes = [norm(path) for path in prefixes]
 
-    for local_obj, remote_obj in mapping.items():
+    for local_repr, remote_reprs in mapping.items():
 
-        if type(remote_obj) != list:
-            remote_obj = [remote_obj]
+        if type(remote_reprs) != list:
+            remote_reprs = [remote_reprs]
 
-        local = [norm(path) for path in expand_braces(local_obj)]
-        remote = [norm(path) for expr in remote_obj for path in expand_braces(expr)]
+        local_paths = expand_braces(local_repr)
 
-        # for now
-        for l in local:
-            if l.endswith("/"):
+        remote_dirs = [
+            path
+            for remote_repr in remote_reprs
+            for path in expand_braces(remote_repr)
+            if any(norm(path).startswith(prefix) for prefix in prefixes)
+        ]
+
+        for local_path, remote_dir in product(local_paths, remote_dirs):
+
+            # For now, to keep things easy
+            if local_path.endswith("/"):
                 raise Exception("Local must not be the content of a directory")
-        for r in remote:
-            if not r.endswith("/"):
+            if not remote_dir.endswith("/"):
                 raise Exception("Remote must be a directory in which the "
                                 "local directory will be placed")
 
-        for l in local:
-            for r in remote:
-                if any(r.startswith(p) for p in prefixes):
-                    yield SyncPair(dirname(l)+"/", r, basename(l))
+            local_dir, fn = split(local_path)
+            yield join(norm(local_dir), ""), fn, join(norm(remote_dir), "")
 
 
 if __name__ == '__main__':
@@ -216,17 +220,17 @@ if __name__ == '__main__':
         args.prefixes = [
             mount.get('dir') for mount in mounts if mount.get('default')]
 
-    syncs = list(sync_pairs(config.get('sync', {}), args.prefixes))
+    syncs = sync_pairs(config.get('sync', {}), args.prefixes)
 
     if not args.push:
-        syncs = list(SyncPair.swap, syncs)
+        syncs = map(reversed, syncs)
 
-    pairs = groupby(sorted(syncs, key=SyncPair.remote), SyncPair.remote)
+    for dest, sources in grouped_syncs(syncs):
+        logging.warning("rsync {} {}".format(sources, dest))
 
-    for remote, sync in pairs:
-        for s in sync:
-            if args.push:
-                s.rsync()
+        # for s in sync:
+        #    if args.push:
+        #        s.rsync()
 
 #    for sync in syncs:
 #        ensure_mounted(sync.remote, mounts)
