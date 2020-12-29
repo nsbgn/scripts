@@ -36,8 +36,9 @@ Currently, the repository contains the following tools:
 - [download-article](download-article) downloads an internet article to a 
   Markdown file.
 - [thesaurus](thesaurus): Presents a list of related words.
-- [bak](bak): A script to keep my files backed up using 
-  [rsync](https://rsync.samba.org/).
+- [bak](bak): A script to keep my files synchronised across my devices 
+  (ereader, music player, external harddisk, etcetera), by running 
+  [rsync](https://rsync.samba.org/) on a YAML configuration.
 - [block](block): Easily blocking websites through `/etc/hosts`.
 - [printer](printer): Print PDFs as double-sided booklets on cheap printers 
   without automatic double-sided printing.

@@ -1,126 +1,326 @@
-#!/bin/bash
-# This script is one of the messier ones. I'll probably rewrite it at some
-# point.
-#
-# I use rsync to keep my files synchronised across various devices --- through
-# SSH, to SD cards, etcetera. I keep a JSON file to keep this organised. It
-# might seem a bit roundabout, but it feels comfier to me than a bare shell
-# script. This script will also mount the required devices (use `sudo blkid` 
-# to find out UUIDs).
-#
-# For example, the ~/.bak.json might look like this:
-#
-# [ { "id": "mp3"
-#   , "note": "For a hardware MP3 player using FAT32. I use fatsort to keep it sorted."
-#   , "mount": { "dir":"/media/mp3", "uuid":"18a3c1b4-4cde-49dd-a4f7-bbf55f72a318" }
-#   , "local": "~/data/audio/music"
-#   , "remote": "/media/mp3/Music"
-#   , "arguments": 
-#       [ "-rltD", "--modify-window=1", "--size-only", "--include=*.mp3"
-#       , "--include=folder.jpg", "--include=*/", "--exclude=*"
-#       ]
-#   } ]
-#
-# Dependencies: rsync, pmount, fatsort, jq
+#!/usr/bin/env python3
+"""
+A wrapper around `rsync` that makes it easy to specify directories to be kept
+in sync. It also automatically mounts and unmounts required directories.
+Intended for myself, but it may be useful. Requires `pmount` and `rsync` in
+your $PATH.
 
-# Location of configuration file
-CONFIG="$HOME/.bak.json"
+For example, the YAML configuration (default: ~/.config/bak/config.yaml):
 
+    mount:
+        - dir: /media/toshiba
+          uuid: 18a3c1b4
+          keyfile: ~/.keyfile.bin
+          default: true
+        - dir: /media/sandisk
+          uuid: 60f417bd
+          fat32: true
+    sync:
+        ~/{projects,documents}:
+            - /media/sandisk/
+            - /media/toshiba/archive/
+        /media/data/photos: /media/sandisk/
 
-# Obtain configuration (set TARGET environment variable accordingly; otherwise
-# the first is used)
-JSON="$( jq \
-    --arg entry "$TARGET" \
-    'if $entry == "" then .[0] else .[] | select(.id == $entry) end' \
-    < "$CONFIG")"
+Then, calling `bak --push /media/sandisk` would push local changes to just
+those remote directories that start with /media/sandisk, before ensuring that
+/media/sandisk is mounted. To find out the UUID of a disk, run `blkid`.
+"""
 
-if ! [ "$JSON" ]; then
-    echo "Backup target \"$TARGET\" was not found."
-    exit 1
-fi
+# TODO Check if any sync group has conflicts, e.g. same file copied twice
+# TODO Check if all prefixes have at least one sync associated with them
+# TODO add options for different mounts
 
-
-# Set relevant variables from configuration
-read -r LOCAL REMOTE MOUNT UUID KEYFILE < <(echo "$JSON" | jq -r '[.local,.remote,.mount.dir//empty,.mount.uuid//empty,.mount.keyfile//empty] | @tsv')
-readarray -t FILES < <(echo "$JSON" | jq -r '.files // empty | .[]')
-readarray -t OPTS < <(echo "$JSON" | jq -r '.arguments // empty | .[]')
+import subprocess
+import re
+import yaml
+import logging
+import argparse
+import stat
+import os
+from os.path import expanduser, realpath, ismount, join, split
+from collections import defaultdict
+from itertools import product
 
 
-# If there are no target files, there should still be something synchronised,
-# namely, the directories themselves
-if [ ${#FILES[@]} -eq 0 ]; then
-    FILES=( "" )
-fi
+class Mount:
+    def __init__(self, dir, uuid, keyfile=None, default=False, **kwargs):
+        self.path = normalize(dir)
+        self.device = join('/dev/disk/by-uuid', uuid)
+        self.keyfile = keyfile
+        self.default = default
+
+    def contains(self, path):
+        """
+        Test if this mount is relevant to the given path.
+        """
+        return path.startswith(self.path)
+
+    def is_available(self):
+        """
+        Test if the block device corresponding to this mount exists.
+        """
+        try:
+            return stat.S_ISBLK(os.stat(self.path).st_mode)
+        except FileNotFoundError:
+            return False
+
+    def is_mounted(self):
+        """
+        Test if this mount is mounted on the system.
+        """
+        return ismount(self.path)
+
+    def mount(self, mount=True):
+        logging.info("Mounting {} to {}".format(self.device, self.path))
+        pmount(self.path, self.device, self.keyfile, mount=True)
+
+    def umount(self):
+        logging.info("Unmounting {}".format(self.path))
+        pmount(self.path, self.device, mount=False)
 
 
-# Expand tildes
-LOCAL="${LOCAL/#\~/$HOME}"
-REMOTE="${REMOTE/#\~/$HOME}"
-MOUNT="${MOUNT/#\~/$HOME}"
+class Sync:
+    """
+    A Sync object represents a single file that should be kept the same across
+    two directories. Because it can be proken up into different calls of
+    `rsync` depending on whether we are pushing or pulling, Sync has a `push`
+    and `pull` method operating on multiple Syncs.
+    """
+
+    def __init__(self, local, filename, remote):
+        self.local = normalize(local)
+        self.filename = filename
+        self.remote = normalize(remote)
+
+    def local(self):
+        return self.local
+
+    def remote(self):
+        return self.remote
+
+    @staticmethod
+    def _group(pairs, src, dest):
+        d = defaultdict(list)
+        for s in pairs:
+            d[join(dest(s), '')].append(join(src(s), s.filename))
+        return d.items()
+
+    @staticmethod
+    def pull(pairs):
+        return Sync._group(pairs, src=Sync.remote, dest=Sync.local)
+
+    @staticmethod
+    def push(pairs):
+        return Sync._group(pairs, src=Sync.local, dest=Sync.remote)
+
+    @staticmethod
+    def extract(mapping):
+        """
+        Find all synchronization pairs represented by the mapping.
+
+        @param mapping: A dictionary mapping files to to one or more remote
+            directories.
+        @returns: an iterator of Sync objects
+        """
+
+        for local_repr, remote_reprs in mapping.items():
+
+            if type(remote_reprs) is not list:
+                remote_reprs = [remote_reprs]
+
+            local_paths = expand_braces(local_repr)
+            remote_dirs = [path for remote_repr in remote_reprs
+                           for path in expand_braces(remote_repr)]
+
+            for local_path, remote_dir in product(local_paths, remote_dirs):
+
+                # For now, to keep things easy
+                if local_path.endswith("/"):
+                    raise Exception("Local must not end with a slash")
+                if not remote_dir.endswith("/"):
+                    raise Exception("Remote must be a directory in which the "
+                                    "local directory will be placed")
+
+                local_dir, filename = split(local_path)
+                yield Sync(local_dir, filename, remote_dir)
 
 
-# Do a dry run first, then asks for confirmation before rsyncing
-function rsync-confirm {
-    if [ "$MOUNT" ] && ! mountpoint -q "$MOUNT"; then
-        echo "\"$MOUNT\" is not a mount point."
-        exit 1
-    fi
-    echo rsync "$@"
-    rsync --dry-run "$@"
-    read -r -p "Are you sure? [y/N] " confirmation
-    case $confirmation in
-        [yY][eE][sS]|[yY])
-            rsync "$@"
-            ;;
-        *)
-            exit 0
-            ;;
-    esac
-}
+def sync_writes():
+    """
+    Synchronize cached writes to persistent storage.
+    """
+    logging.info("Synchronizing cached writes")
+    subprocess.run(["sync"], check=True)
 
 
-for arg in "$@"; do
-    case $arg in
-        -i|--pull)
-            rsync-confirm --progress \
-                "${OPTS[@]}" \
-                "${FILES[@]/#/$REMOTE/}" \
-                "$LOCAL/"
-            sync
-        ;;
-        -o|--push)
-            rsync-confirm --progress \
-                "${OPTS[@]}" \
-                "${FILES[@]/#/$LOCAL/}" \
-                "$REMOTE/"
-            sync
-        ;;
-        -m|--mount)
-            eval KEYFILE="$KEYFILE"
-            if [ -f "$KEYFILE" ]
-            then
-                pmount -p "$KEYFILE" /dev/disk/by-uuid/"$UUID" "$MOUNT"
-            else
-                pmount /dev/disk/by-uuid/"$UUID" "$MOUNT"
-            fi
-        ;;
-        -u|--umount)
-            pumount "$MOUNT"
-            udisksctl power-off --block-device /dev/disk/by-uuid/"$UUID"
-        ;;
-        *)
-        echo "Unknown command line argument."
-        exit 1
-        ;;
-    esac
-done
+def pmount(path, device, keyfile=None, mount=True):
+    """
+    Mount directories as a user. Wrapper for the `pmount` tool.
+    """
+    command = ["pmount" if mount else "pumount"]
+    if keyfile and mount:
+        command.extend(("-p", expanduser(keyfile)))
+    if mount:
+        command.append(device)
+    command.append(path)
+    subprocess.run(command, check=True)
 
-# This is a work-in-progress.
-# The idea is to first skip files that are newer on the receiver, then report
-# which files were skipped and whether or not you want to replace them, too.
-#function summary {
-# diff 
-#    <(rsync --dry-run --itemize-changes          "${OPTS[@]}" "${LOCAL}" "${REMOTE}") 
-#    <(rsync --dry-run --itemize-changes --update "${OPTS[@]}" "${LOCAL}" "${REMOTE}") 
-#}
 
+def rsync(dest, sources, dry_run=True, fat32=False, delete_before=False):
+    command = ['rsync', '--progress']
+
+    if dry_run:
+        command.append('--dry-run')
+
+    if fat32:
+        command.extend((
+            '--recursive',
+            '--links',
+            '--times',
+            '--devices',
+            '--specials',
+            '--size-only',
+            '--modify-window=1'))
+    else:
+        command.append('--archive')
+
+    command.append('--delete')
+
+    if delete_before:
+        command.append('--delete-before')
+
+    command.extend((
+        '--filter=dir-merge,- .gitignore',
+        '--exclude=lost+found',
+        '--exclude=.Trash-1000'))
+
+    command.extend(sources)
+    command.append(dest)
+
+    logging.info(" ".join(command))
+    subprocess.run(command, check=True)
+
+
+def confirm(message, default=False):
+    """
+    Ask user for confirmation on the shell.
+    """
+    answer = input("{message} [{default}]".format(
+        message=message, default="Y/n" if default else "y/N"))
+    return (not answer and default) or (answer.lower() in ('yes', 'y'))
+
+
+def expand_braces(s, pattern=re.compile(r'.*(\{.+?[^\\]\})')):
+    """
+    Shell-style expansion of braces, that is: "a{b,c}" becomes "ab", "ac"
+    """
+
+    result = []
+    match = pattern.search(s)
+    if match is not None:
+        sub = match.group(1)
+        opening = s.find(sub)
+        closing = opening + len(sub) - 1
+        if sub.find(',') != -1:
+            result.extend((
+                a
+                for p in sub.strip('{}').split(',')
+                for a in expand_braces(s[:opening] + p + s[closing+1:])
+            ))
+        else:
+            result.extend(
+               expand_braces(s[:opening] + sub.replace('}', '\\}') +
+                             s[closing+1:]))
+    else:
+        result.append(s.replace('\\}', '}'))
+
+    return result
+
+
+def normalize(path):
+    """
+    Normalize a path.
+    """
+    return realpath(expanduser(path))
+
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(
+        description="Mount and synchronise directories based on YAML "
+                    "configuration"
+    )
+
+    parser.add_argument(
+        '--config', default='~/.config/bak/config.yaml',
+        help="configuration file")
+    parser.add_argument(
+        '--log',
+        choices=['debug', 'info', 'warning', 'error', 'critical'],
+        default='debug',
+        help="level of information logged to the terminal")
+    parser.add_argument(
+        '-m', '--automount', action='store_true', default=False,
+        help="automatically (un)mount devices")
+
+    push = parser.add_mutually_exclusive_group(required=True)
+    push.add_argument(
+        '-o', '--push', action='store_true',
+        help="push changes to remote")
+    push.add_argument(
+        '-i', '--pull', action='store_false',
+        help="pull changes from remote")
+
+    parser.add_argument(
+        'prefixes', nargs='*',
+        help="(prefixes of) remote directories to be synced")
+
+    args = parser.parse_args()
+
+    logging.basicConfig(level=getattr(logging, args.log.upper()))
+
+    with open(expanduser(args.config), 'r') as f:
+        config = yaml.safe_load(f)
+
+    mounts = [Mount(**e) for e in config.get('mount', [])]
+
+    prefixes = [normalize(prefix) for prefix in args.prefixes]
+    if not prefixes:
+        prefixes = [mount.path for mount in mounts if mount.default]
+        logging.info("No prefixes given, selecting defaults.")
+
+    logging.info("Selected prefixes: {}".format(prefixes))
+
+    syncs = [
+        s for s in Sync.extract(config.get('sync'))
+        if any(s.remote.startswith(prefix) for prefix in prefixes)
+    ]
+
+    to_be_mounted = [
+        m for m in mounts
+        if any(m.contains(s.remote) for s in syncs)
+        and not m.is_mounted()
+    ]
+
+    logging.info("To mount: {}".format([m.path for m in to_be_mounted]))
+
+    for m in to_be_mounted:
+        if args.automount:
+            m.mount()
+        else:
+            logging.error("{} is not mounted".format(m.path))
+            exit(1)
+
+    groups = list(Sync.push(syncs) if args.push else Sync.pull(syncs))
+    for dest, sources in groups:
+        rsync(dest, sources, dry_run=True)
+        if confirm("Are you sure?", default=False):
+            rsync(dest, sources, dry_run=False)
+
+    if args.automount:
+        for m in to_be_mounted:
+            m.umount()
+
+    sync_writes()
+
+    logging.info("Done!")
