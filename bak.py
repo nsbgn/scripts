@@ -38,6 +38,38 @@ from itertools import product
 # from pathlib import Path
 
 
+class Mount:
+    def __init__(self, dir, uuid, keyfile=None, default=False):
+        self.path = dir
+        self.device = join('/dev/disk/by-uuid', uuid)
+        self.keyfile = keyfile
+        self.default = default
+
+    def is_ancestor(self, *paths):
+        """
+        Test if a mount is relevant to any of the given paths.
+        """
+        return any(True for path in paths if path.startswith(self.path))
+
+    def is_available(self):
+        """
+        Test if the block device corresponding to this mount exists.
+        """
+        try:
+            return stat.S_ISBLK(os.stat(self.path).st_mode)
+        except FileNotFoundError:
+            return False
+
+    def is_active(self):
+        """
+        Test if this mount is mounted on the system.
+        """
+        return ismount(self.path)
+
+    def mount(self, undo=True):
+        pmount(self.path, self.device, self.keyfile, mount=undo)
+
+
 class SyncPair:
     def __init__(self, local, remote, *files):
         self.local = local
@@ -62,16 +94,6 @@ def norm(path):
     return realpath(expanduser(path)) + ("/" if path.endswith("/") else "")
 
 
-def is_block_device(path):
-    """
-    Test if a path refers to a block device.
-    """
-    try:
-        return stat.S_ISBLK(os.stat(path).st_mode)
-    except FileNotFoundError:
-        return False
-
-
 def pmount(path, device, keyfile=None, mount=True):
     """
     Mount directories as a user. Wrapper for the `pmount` tool.
@@ -82,30 +104,6 @@ def pmount(path, device, keyfile=None, mount=True):
     command.append(device)
     command.append(path)
     subprocess.run(command, check=True)
-
-
-def relevant_mounts(paths, mounts):
-    """
-    """
-
-    result = dict()
-    for path in paths:
-        result.update({
-            m.get('dir'): m for m in mounts if path.startswith(m.get('dir'))
-        })
-    return result.values()
-
-
-def mount_all(mounts, mount=True):
-    """
-    Make sure that the given mounts are mounted.
-    """
-    for mount in mounts:
-        if not ismount(mount.get('dir')):
-            pmount(mount.get('dir'),
-                   '/dev/disk/by-uuid/{}'.format(mount.get('uuid')),
-                   keyfile=mount.get('keyfile'),
-                   mount=mount)
 
 
 def rsync(dest, sources, dry_run=True, fat32=False, delete_before=False):
@@ -265,21 +263,23 @@ if __name__ == '__main__':
     with open(expanduser(args.config), 'r') as f:
         config = yaml.safe_load(f)
 
-    mounts = config.get('mount', [])
+    mounts = [Mount(*e) for e in config.get('mount', [])]
+
     if not args.prefixes:
         logging.info("No prefixes given, picking defaults")
-        args.prefixes = [
-            mount.get('dir') for mount in mounts if mount.get('default')]
+        args.prefixes = [mount.path for mount in mounts if mount.default]
 
     syncs = extract_syncs(config.get('sync'))
     syncs = list(filter_syncs(syncs, args.prefixes))
 
     # Figure out what needs to be mounted
-    needed_mounts = relevant_mounts((r[2] for r in syncs), mounts)
-    to_be_mounted = list(filter(lambda x: not ismount(x.get('dir')), needed_mounts))
+    to_be_mounted = [
+        m for m in mounts
+        if m.is_ancestor(*(r[2] for r in syncs)) and not m.is_active()]
 
     if args.automount:
-        mount_all(to_be_mounted)
+        for m in to_be_mounted:
+            m.mount()
     elif len(to_be_mounted) != 0:
         for m in to_be_mounted:
             logging.error("{} is not mounted".format(m.get('dir')))
@@ -293,5 +293,6 @@ if __name__ == '__main__':
             print("okay")
 
     if args.automount:
-        mount_all(to_be_mounted, False)
+        for m in to_be_mounted:
+            m.mount(False)
 
