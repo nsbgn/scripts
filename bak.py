@@ -24,6 +24,8 @@ those remote directories that start with /media/sandisk, before ensuring that
 /media/sandisk is mounted. To find out the UUID of a disk, run `blkid`.
 """
 
+# TODO Check if any sync group has conflicts, e.g. same file copied twice
+
 import subprocess
 import re
 import yaml
@@ -39,7 +41,7 @@ from itertools import product
 
 
 class Mount:
-    def __init__(self, dir, uuid, keyfile=None, default=False):
+    def __init__(self, dir, uuid, keyfile=None, default=False, **kwargs):
         self.path = dir
         self.device = join('/dev/disk/by-uuid', uuid)
         self.keyfile = keyfile
@@ -66,8 +68,12 @@ class Mount:
         """
         return ismount(self.path)
 
-    def mount(self, undo=True):
-        pmount(self.path, self.device, self.keyfile, mount=undo)
+    def mount(self, mount=True):
+        if mount:
+            logging.info("Mounting {} to {}".format(self.device, self.path))
+        else:
+            logging.info("Unmounting {}".format(self.path))
+        pmount(self.path, self.device, self.keyfile, mount=mount)
 
 
 class SyncPair:
@@ -240,33 +246,42 @@ if __name__ == '__main__':
                     "configuration"
     )
 
-    parser.add_argument('--config', default='~/scrapbook/bak.yaml',
-                        help="configuration file")
-
     parser.add_argument(
-        '-m', '--automount', action='store_true',
-        default=False, help="automatically (un)mount devices")
+        '--config', default='~/scrapbook/bak.yaml',
+        help="configuration file")
+    parser.add_argument(
+        '-m', '--automount', action='store_true', default=False,
+        help="automatically (un)mount devices")
 
     push = parser.add_mutually_exclusive_group(required=True)
-    push.add_argument('-o', '--push', action='store_true',
-                      help="push changes to remote")
-    push.add_argument('-i', '--pull', action='store_false',
-                      help="pull changes from remote")
+    push.add_argument(
+        '-o', '--push', action='store_true',
+        help="push changes to remote")
+    push.add_argument(
+        '-i', '--pull', action='store_false',
+        help="pull changes from remote")
 
     parser.add_argument(
-        'prefixes',
-        nargs='*',
+        'prefixes', nargs='*',
         help="prefixes of remote directories to be synced")
 
+    parser.add_argument(
+        '--log',
+        choices=['debug', 'info', 'warning', 'error', 'critical'],
+        default='debug',
+        help="level of information logged to the terminal")
+
     args = parser.parse_args()
+
+    logging.basicConfig(level=getattr(logging, args.log.upper()))
 
     with open(expanduser(args.config), 'r') as f:
         config = yaml.safe_load(f)
 
-    mounts = [Mount(*e) for e in config.get('mount', [])]
+    mounts = [Mount(**e) for e in config.get('mount', [])]
 
     if not args.prefixes:
-        logging.info("No prefixes given, picking defaults")
+        logging.info("No prefixes given, picking defaults.")
         args.prefixes = [mount.path for mount in mounts if mount.default]
 
     syncs = extract_syncs(config.get('sync'))
@@ -277,12 +292,13 @@ if __name__ == '__main__':
         m for m in mounts
         if m.is_ancestor(*(r[2] for r in syncs)) and not m.is_active()]
 
-    if args.automount:
-        for m in to_be_mounted:
+    logging.info("Needed mounts: {}".format(", ".join([m.path for m in to_be_mounted])))
+
+    for m in to_be_mounted:
+        if args.automount:
             m.mount()
-    elif len(to_be_mounted) != 0:
-        for m in to_be_mounted:
-            logging.error("{} is not mounted".format(m.get('dir')))
+        else:
+            logging.error("{} is not mounted".format(m.path))
 
     if not args.push:
         syncs = map(reversed, syncs)
