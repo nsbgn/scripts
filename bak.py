@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-A wrapper around `rsync` that automatically mounts and unmounts required
-directories. Intended for myself, but it may be useful. Requires `pmount` and
-`rsync` in your $PATH.
+A wrapper around `rsync` that makes it easy to specify directories to be kept
+in sync. It also automatically mounts and unmounts required directories.
+Intended for myself, but it may be useful. Requires `pmount` and `rsync` in
+your $PATH.
 
 For example, the YAML configuration (default location: ~/.config/bak.yaml):
 
@@ -13,11 +14,12 @@ For example, the YAML configuration (default location: ~/.config/bak.yaml):
           default: true
         - dir: /media/sandisk
           uuid: 60f417bd
+          fat32: true
     sync:
         ~/{projects,documents}:
             - /media/sandisk/
             - /media/toshiba/archive/
-        /media/data/photos: /media/sandisk/pictures
+        /media/data/photos: /media/sandisk/
 
 Then, calling `bak --push /media/sandisk` would push local changes to just
 those remote directories that start with /media/sandisk, before ensuring that
@@ -26,6 +28,7 @@ those remote directories that start with /media/sandisk, before ensuring that
 
 # TODO Check if any sync group has conflicts, e.g. same file copied twice
 # TODO Check if all prefixes have at least one sync associated with them
+# TODO add options for different mounts
 
 import subprocess
 import re
@@ -35,24 +38,22 @@ import argparse
 import stat
 import os
 from os.path import expanduser, realpath, ismount, join, split
-
 from collections import defaultdict
 from itertools import product
-# from pathlib import Path
 
 
 class Mount:
     def __init__(self, dir, uuid, keyfile=None, default=False, **kwargs):
-        self.path = dir
+        self.path = normalize(dir)
         self.device = join('/dev/disk/by-uuid', uuid)
         self.keyfile = keyfile
         self.default = default
 
-    def is_ancestor(self, *paths):
+    def contains(self, path):
         """
-        Test if a mount is relevant to any of the given paths.
+        Test if this mount is relevant to the given path.
         """
-        return any(True for path in paths if path.startswith(self.path))
+        return path.startswith(self.path)
 
     def is_available(self):
         """
@@ -63,21 +64,29 @@ class Mount:
         except FileNotFoundError:
             return False
 
-    def is_active(self):
+    def is_mounted(self):
         """
         Test if this mount is mounted on the system.
         """
         return ismount(self.path)
 
     def mount(self, mount=True):
-        if mount:
-            logging.info("Mounting {} to {}".format(self.device, self.path))
-        else:
-            logging.info("Unmounting {}".format(self.path))
-        pmount(self.path, self.device, self.keyfile, mount=mount)
+        logging.info("Mounting {} to {}".format(self.device, self.path))
+        pmount(self.path, self.device, self.keyfile, mount=True)
+
+    def umount(self):
+        logging.info("Unmounting {}".format(self.path))
+        pmount(self.path, self.device, mount=False)
 
 
 class Sync:
+    """
+    A Sync object represents a single file that should be kept the same across
+    two directories. Because it can be proken up into different calls of
+    `rsync` depending on whether we are pushing or pulling, Sync has a `push`
+    and `pull` method operating on multiple Syncs.
+    """
+
     def __init__(self, local, filename, remote):
         self.local = normalize(local)
         self.filename = filename
@@ -93,7 +102,7 @@ class Sync:
     def _group(pairs, src, dest):
         d = defaultdict(list)
         for s in pairs:
-            d[dest(s)].append(join(src(s), s.filename))
+            d[join(dest(s), '')].append(join(src(s), s.filename))
         return d.items()
 
     @staticmethod
@@ -104,13 +113,44 @@ class Sync:
     def push(pairs):
         return Sync._group(pairs, src=Sync.local, dest=Sync.remote)
 
+    @staticmethod
+    def extract(mapping):
+        """
+        Find all synchronization pairs represented by the mapping.
 
-def sync_writes(*dest):
+        @param mapping: A dictionary mapping files to to one or more remote
+            directories.
+        @returns: an iterator of Sync objects
+        """
+
+        for local_repr, remote_reprs in mapping.items():
+
+            if type(remote_reprs) is not list:
+                remote_reprs = [remote_reprs]
+
+            local_paths = expand_braces(local_repr)
+            remote_dirs = [path for remote_repr in remote_reprs
+                           for path in expand_braces(remote_repr)]
+
+            for local_path, remote_dir in product(local_paths, remote_dirs):
+
+                # For now, to keep things easy
+                if local_path.endswith("/"):
+                    raise Exception("Local must not end with a slash")
+                if not remote_dir.endswith("/"):
+                    raise Exception("Remote must be a directory in which the "
+                                    "local directory will be placed")
+
+                local_dir, filename = split(local_path)
+                yield Sync(local_dir, filename, remote_dir)
+
+
+def sync_writes():
     """
     Synchronize cached writes to persistent storage.
     """
-    logging.info("Synchronizing cached writes for {}".format(",".join(dest)))
-    subprocess.run(["sync"] + list(dest), check=True)
+    logging.info("Synchronizing cached writes for {}")
+    subprocess.run(["sync"], check=True)
 
 
 def pmount(path, device, keyfile=None, mount=True):
@@ -118,9 +158,10 @@ def pmount(path, device, keyfile=None, mount=True):
     Mount directories as a user. Wrapper for the `pmount` tool.
     """
     command = ["pmount" if mount else "pumount"]
-    if keyfile:
+    if keyfile and mount:
         command.extend(("-p", expanduser(keyfile)))
-    command.append(device)
+    if mount:
+        command.append(device)
     command.append(path)
     subprocess.run(command, check=True)
 
@@ -156,7 +197,7 @@ def rsync(dest, sources, dry_run=True, fat32=False, delete_before=False):
     command.extend(sources)
     command.append(dest)
 
-    logging.warning(" ".join(command))
+    logging.info(" ".join(command))
     subprocess.run(command, check=True)
 
 
@@ -203,42 +244,6 @@ def normalize(path):
     return realpath(expanduser(path))
 
 
-def extract_syncs(mapping):
-    """
-    Find all 3-tuples of local directory, filename and remote directory
-    represented by the mapping.
-
-    @param mapping: A dictionary mapping files to to one or more remote
-        directories.
-    @returns: tuple of local directory, target basename, and remote directory
-    """
-
-    for local_repr, remote_reprs in mapping.items():
-
-        if type(remote_reprs) != list:
-            remote_reprs = [remote_reprs]
-
-        local_paths = expand_braces(local_repr)
-
-        remote_dirs = [
-            path
-            for remote_repr in remote_reprs
-            for path in expand_braces(remote_repr)
-        ]
-
-        for local_path, remote_dir in product(local_paths, remote_dirs):
-
-            # For now, to keep things easy
-            if local_path.endswith("/"):
-                raise Exception("Local must not be the content of a directory")
-            if not remote_dir.endswith("/"):
-                raise Exception("Remote must be a directory in which the "
-                                "local directory will be placed")
-
-            local_dir, filename = split(local_path)
-            yield Sync(local_dir, filename, remote_dir)
-
-
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(
@@ -279,38 +284,43 @@ if __name__ == '__main__':
 
     mounts = [Mount(**e) for e in config.get('mount', [])]
 
-    if not args.prefixes:
-        args.prefixes = [mount.path for mount in mounts if mount.default]
+    prefixes = [normalize(prefix) for prefix in args.prefixes]
+    if not prefixes:
+        prefixes = [mount.path for mount in mounts]
         logging.info("No prefixes given, selecting defaults.")
 
-    logging.info("Selected prefixes: {}".format(", ".join(args.prefixes)))
+    logging.info("Selected prefixes: {}".format(prefixes))
 
-    syncs = [s for s in extract_syncs(config.get('sync'))
-             if any(s.remote.startswith(normalize(p)) for p in args.prefixes)]
+    syncs = [
+        s for s in Sync.extract(config.get('sync'))
+        if any(s.remote.startswith(prefix) for prefix in prefixes)
+    ]
 
-    # Figure out what needs to be mounted
     to_be_mounted = [
         m for m in mounts
-        if m.is_ancestor(*(s.remote for s in syncs)) and not m.is_active()]
+        if any(m.contains(s.remote) for s in syncs)
+        and not m.is_mounted()
+    ]
 
-    logging.info("To mount: {}".format(", ".join([m.path for m in to_be_mounted])))
+    logging.info("To mount: {}".format([m.path for m in to_be_mounted]))
 
     for m in to_be_mounted:
         if args.automount:
             m.mount()
         else:
-            logging.error("{} is not mounted. Turn on automount?".format(m.path))
+            logging.error("{} is not mounted".format(m.path))
             exit(1)
 
     groups = list(Sync.push(syncs) if args.push else Sync.pull(syncs))
     for dest, sources in groups:
-        kwargs = dict()
-        rsync(dest, sources, dry_run=True, **kwargs)
+        rsync(dest, sources, dry_run=True)
         if confirm("Are you sure?", default=False):
-            rsync(dest, sources, dry_run=False, **kwargs)
+            rsync(dest, sources, dry_run=False)
 
     if args.automount:
         for m in to_be_mounted:
-            m.mount(False)
+            m.umount()
 
-    sync_writes(*(group[0] for group in groups))
+    sync_writes()
+
+    logging.info("Done!")
