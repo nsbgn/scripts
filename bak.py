@@ -25,6 +25,7 @@ those remote directories that start with /media/sandisk, before ensuring that
 """
 
 # TODO Check if any sync group has conflicts, e.g. same file copied twice
+# TODO Check if all prefixes have at least one sync associated with them
 
 import subprocess
 import re
@@ -76,28 +77,40 @@ class Mount:
         pmount(self.path, self.device, self.keyfile, mount=mount)
 
 
-class SyncPair:
-    def __init__(self, local, remote, *files):
-        self.local = local
-        self.remote = remote
-        self.files = files
+class Sync:
+    def __init__(self, local, filename, remote):
+        self.local = normalize(local)
+        self.filename = filename
+        self.remote = normalize(remote)
+
+    def local(self):
+        return self.local
 
     def remote(self):
         return self.remote
 
-    def local(self):
-        for f in self.files:
-            yield join(self.local, f)
+    @staticmethod
+    def _group(pairs, src, dest):
+        d = defaultdict(list)
+        for s in pairs:
+            d[dest(s)].append(join(src(s), s.filename))
+        return d.items()
+
+    @staticmethod
+    def pull(pairs):
+        return Sync._group(pairs, src=Sync.remote, dest=Sync.local)
+
+    @staticmethod
+    def push(pairs):
+        return Sync._group(pairs, src=Sync.local, dest=Sync.remote)
 
 
-def confirm(message, default=False):
-    answer = input("{message} [{default}]".format(
-        message=message, default="Y/n" if default else "y/N"))
-    return (not answer and default) or (answer.lower() in ('yes', 'y'))
-
-
-def norm(path):
-    return realpath(expanduser(path)) + ("/" if path.endswith("/") else "")
+def sync_writes(*dest):
+    """
+    Synchronize cached writes to persistent storage.
+    """
+    logging.info("Synchronizing cached writes for {}".format(",".join(dest)))
+    subprocess.run(["sync"] + list(dest), check=True)
 
 
 def pmount(path, device, keyfile=None, mount=True):
@@ -147,6 +160,15 @@ def rsync(dest, sources, dry_run=True, fat32=False, delete_before=False):
     subprocess.run(command, check=True)
 
 
+def confirm(message, default=False):
+    """
+    Ask user for confirmation on the shell.
+    """
+    answer = input("{message} [{default}]".format(
+        message=message, default="Y/n" if default else "y/N"))
+    return (not answer and default) or (answer.lower() in ('yes', 'y'))
+
+
 def expand_braces(s, pattern=re.compile(r'.*(\{.+?[^\\]\})')):
     """
     Shell-style expansion of braces, that is: "a{b,c}" becomes "ab", "ac"
@@ -174,33 +196,11 @@ def expand_braces(s, pattern=re.compile(r'.*(\{.+?[^\\]\})')):
     return result
 
 
-def group_syncs(syncs):
+def normalize(path):
     """
-    Group 3-tuples, such that those with the same destination directory end up
-    in the same tuple.
-
-    @param syncs: 3-tuples
-    @returns: iterator of tuples, containing a destination directory and a list
-        of source files
+    Normalize a path.
     """
-
-    d = defaultdict(list)
-    for src_dir, fn, dest_dir in syncs:
-        d[norm(dest_dir)].append(join(src_dir, fn))
-    return d.items()
-
-
-def filter_syncs(syncs, prefixes):
-    """
-    Filter 3-tuples such that only those with relevant prefixes on the remote
-    directory are kept.
-
-    @param prefixes: A generator of string prefixes.
-    """
-
-    return filter(
-        lambda s: any(s[2].startswith(norm(p)) for p in prefixes),
-        syncs)
+    return realpath(expanduser(path))
 
 
 def extract_syncs(mapping):
@@ -235,8 +235,8 @@ def extract_syncs(mapping):
                 raise Exception("Remote must be a directory in which the "
                                 "local directory will be placed")
 
-            local_dir, fn = split(local_path)
-            yield join(norm(local_dir), ""), fn, join(norm(remote_dir), "")
+            local_dir, filename = split(local_path)
+            yield Sync(local_dir, filename, remote_dir)
 
 
 if __name__ == '__main__':
@@ -249,6 +249,11 @@ if __name__ == '__main__':
     parser.add_argument(
         '--config', default='~/scrapbook/bak.yaml',
         help="configuration file")
+    parser.add_argument(
+        '--log',
+        choices=['debug', 'info', 'warning', 'error', 'critical'],
+        default='debug',
+        help="level of information logged to the terminal")
     parser.add_argument(
         '-m', '--automount', action='store_true', default=False,
         help="automatically (un)mount devices")
@@ -263,13 +268,7 @@ if __name__ == '__main__':
 
     parser.add_argument(
         'prefixes', nargs='*',
-        help="prefixes of remote directories to be synced")
-
-    parser.add_argument(
-        '--log',
-        choices=['debug', 'info', 'warning', 'error', 'critical'],
-        default='debug',
-        help="level of information logged to the terminal")
+        help="(prefixes of) remote directories to be synced")
 
     args = parser.parse_args()
 
@@ -281,34 +280,37 @@ if __name__ == '__main__':
     mounts = [Mount(**e) for e in config.get('mount', [])]
 
     if not args.prefixes:
-        logging.info("No prefixes given, picking defaults.")
         args.prefixes = [mount.path for mount in mounts if mount.default]
+        logging.info("No prefixes given, selecting defaults.")
 
-    syncs = extract_syncs(config.get('sync'))
-    syncs = list(filter_syncs(syncs, args.prefixes))
+    logging.info("Selected prefixes: {}".format(", ".join(args.prefixes)))
+
+    syncs = [s for s in extract_syncs(config.get('sync'))
+             if any(s.remote.startswith(normalize(p)) for p in args.prefixes)]
 
     # Figure out what needs to be mounted
     to_be_mounted = [
         m for m in mounts
-        if m.is_ancestor(*(r[2] for r in syncs)) and not m.is_active()]
+        if m.is_ancestor(*(s.remote for s in syncs)) and not m.is_active()]
 
-    logging.info("Needed mounts: {}".format(", ".join([m.path for m in to_be_mounted])))
+    logging.info("To mount: {}".format(", ".join([m.path for m in to_be_mounted])))
 
     for m in to_be_mounted:
         if args.automount:
             m.mount()
         else:
-            logging.error("{} is not mounted".format(m.path))
+            logging.error("{} is not mounted. Turn on automount?".format(m.path))
+            exit(1)
 
-    if not args.push:
-        syncs = map(reversed, syncs)
-
-    for dest, sources in group_syncs(syncs):
-        #rsync(dest, sources)
+    groups = list(Sync.push(syncs) if args.push else Sync.pull(syncs))
+    for dest, sources in groups:
+        kwargs = dict()
+        rsync(dest, sources, dry_run=True, **kwargs)
         if confirm("Are you sure?", default=False):
-            print("okay")
+            rsync(dest, sources, dry_run=False, **kwargs)
 
     if args.automount:
         for m in to_be_mounted:
             m.mount(False)
 
+    sync_writes(*(group[0] for group in groups))
