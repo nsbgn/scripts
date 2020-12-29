@@ -29,6 +29,8 @@ import re
 import yaml
 import logging
 import argparse
+import stat
+import os
 from os.path import expanduser, realpath, ismount, join, split
 
 from collections import defaultdict
@@ -58,6 +60,16 @@ def confirm(message, default=False):
 
 def norm(path):
     return realpath(expanduser(path)) + ("/" if path.endswith("/") else "")
+
+
+def is_block_device(path):
+    """
+    Test if a path refers to a block device.
+    """
+    try:
+        return stat.S_ISBLK(os.stat(path).st_mode)
+    except FileNotFoundError:
+        return False
 
 
 def pmount(path, device, keyfile=None, mount=True):
@@ -279,8 +291,6 @@ if __name__ == '__main__':
         #rsync(dest, sources)
         if confirm("Are you sure?", default=False):
             print("okay")
-
-
 
     if args.automount:
         mount_all(to_be_mounted, False)
