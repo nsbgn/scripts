@@ -5,7 +5,7 @@
 while
     NEXT_WORD="$(\
         echo -n "$NEXT_WORD" | \
-        dmenu -p "Thesaurus:" $DMENU_ARGS | \
+        dmenu -p "Thesaurus" $DMENU_ARGS | \
         xargs --no-run-if-empty thesaurus)"
     test "$NEXT_WORD"
 do 

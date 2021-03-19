@@ -16,7 +16,7 @@ cmd "reload" "pkill -USR1 -x sxhkd; bspc wm -r"
 cmd "reboot" "systemctl reboot"
 cmd "shutdown" "systemctl poweroff"
 
-key=$(for k in "${NAMES[@]}"; do echo "$k"; done | dmenu -p 'System:')
+key=$(for k in "${NAMES[@]}"; do echo "$k"; done | dmenu -p 'System' ${DMENU_ARGS})
 if [ ! -z "$key" ]; then
     sh <<< "${COMMANDS[$key]}"
 fi
