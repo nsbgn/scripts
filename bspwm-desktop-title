@@ -1,34 +1,12 @@
 #!/bin/bash
 # This script continuously changes the name of bspwm's desktops to reflect the
-# contents of the client windows it contains.
-#
-# Note that a bspwm name can be no more than 32 bytes --- this must be taken
-# into account. In particular, when you put a Unicode character at the end of a
-# name such that it is truncated, polybar will freak out.
+# number of client windows it contains
 set -euo pipefail
-
-jq='
-def icons:
-    { "urxvt": "term"
-    , "Navigator": "web"
-    , "telegram-desktop": "chat"
-    }
-;
-
-[.root | recurse((.firstChild,.secondChild)//empty) | .client//empty | .instanceName]
-    | map(icons[.] // "?\(.[0:4])")
-    | group_by(.)
-    | map(if length > 1 then "\(length)\(.[0])" else .[0] end)
-    | if . == [] then [" - "] else . end
-    | join(" | ")
-    | " " + . + " "
-'
 
 function rename {
     for desktop_id in $@; do
-        bspc desktop "${desktop_id}" --rename "$(
-            bspc query -T -d "${desktop_id}" | jq -r "${jq}"
-        )" || :
+        bspc desktop "${desktop_id}" --rename " $(bspc query -N -d "${desktop_id}" -n .leaf | wc -l
+        )× " || :
     done
 }
 
