@@ -1,0 +1,25 @@
+#!/bin/sh
+# This script continuously changes the name of bspwm's desktops to reflect the
+# number of client windows. It also removes empty desktops.
+
+rename(){
+    for d in $@; do
+        bspc desktop "$d" --rename \
+            " $(bspc query -N -d "$d" -n .leaf | wc -l)× " || :
+    done
+}
+
+# ... and change desktop names as we move on
+bspc subscribe desktop_add desktop_focus node_add node_remove node_transfer \
+    | while read ev a b c d e f; do
+    case "$ev" in
+        node_add|node_remove|desktop_add)
+            rename "$b" ;;
+        node_transfer)
+            rename "$b" "$e" ;;
+        desktop_focus)
+            for desktop_id in $(bspc query -D -d '.!occupied.!focused'); do
+                bspc desktop "${desktop_id}" --remove
+            done ;;
+    esac
+done
