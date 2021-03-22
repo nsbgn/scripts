@@ -137,9 +137,9 @@ class Sync:
                 # For now, to keep things easy
                 if local_path.endswith("/"):
                     raise Exception("Local must not end with a slash")
-                if not remote_dir.endswith("/"):
-                    raise Exception("Remote must be a directory in which the "
-                                    "local directory will be placed")
+                #if not remote_dir.endswith("/"):
+                #    raise Exception("Remote must be a directory in which the "
+                #                    "local directory will be placed")
 
                 local_dir, filename = split(local_path)
                 yield Sync(local_dir, filename, remote_dir)
