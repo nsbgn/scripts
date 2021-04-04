@@ -30,7 +30,7 @@ case "$EXT" in
         if [ "$(file --brief --mime-encoding "$F")" = "binary" ]; then
             hexyl --length 768 "$F"
         else
-            bat --style=plain --italic-text=always --decorations=always --color=always "$F"
+            bat --theme=OneHalfLight --style=plain --italic-text=always --decorations=always --color=always "$F"
         fi
         ;;
 esac
