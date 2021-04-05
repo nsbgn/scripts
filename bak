@@ -14,7 +14,7 @@ For example, the YAML configuration (default: ~/.config/bak/config.yaml):
           default: true
         - dir: /media/sandisk
           uuid: 60f417bd
-          fat32: true
+          options: ["--archive", "--delete", "--delete-before"]
     sync:
         ~/{projects,documents}:
             - /media/sandisk/
@@ -48,6 +48,7 @@ class Mount:
         self.device = join('/dev/disk/by-uuid', uuid)
         self.keyfile = keyfile
         self.default = default
+        self.options = kwargs.get("options", [])
 
     def contains(self, path):
         """
@@ -166,34 +167,16 @@ def pmount(path, device, keyfile=None, mount=True):
     subprocess.run(command, check=True)
 
 
-def rsync(dest, sources, dry_run=True, fat32=False, delete_before=False):
+def rsync(dest, sources, dry_run=True, options=[]):
     command = ['rsync', '--progress']
 
     if dry_run:
         command.append('--dry-run')
-
-    if fat32:
-        command.extend((
-            '--recursive',
-            '--links',
-            '--times',
-            '--devices',
-            '--specials',
-            '--size-only',
-            '--modify-window=1'))
-    else:
-        command.append('--archive')
-
-    command.append('--delete')
-
-    if delete_before:
-        command.append('--delete-before')
-
+    command.extend(options or ["--archive", "--delete"])
     command.extend((
         '--filter=dir-merge,- .gitignore',
         '--exclude=lost+found',
         '--exclude=.Trash-1000'))
-
     command.extend(sources)
     command.append(dest)
 
@@ -313,9 +296,15 @@ if __name__ == '__main__':
 
     groups = list(Sync.push(syncs) if args.push else Sync.pull(syncs))
     for dest, sources in groups:
-        rsync(dest, sources, dry_run=True)
+
+        try:
+            options = next(m.options for m in mounts if dest.startswith(m.path))
+        except StopIteration:
+            options = []
+
+        rsync(dest, sources, dry_run=True, options=options)
         if confirm("Are you sure?", default=False):
-            rsync(dest, sources, dry_run=False)
+            rsync(dest, sources, dry_run=False, options=options)
 
     if args.automount:
         for m in to_be_mounted:
