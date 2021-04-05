@@ -1,29 +1,25 @@
 #!/bin/bash
 #
 # I have found that the usability of a keyboard increases immensely with the
-# following settings: 
+# following settings:
 #
 # 1. Keeping CapsLock pressed turns it into a Super modifier. I use this key 
 #    to control my window manager.
 # 2. Tapping CapsLock triggers Escape. This is useful for vim-style
 #    keybindings.
+# 3. Tapping Left Alt switches the keyboard group. On the second group, a
+#    numpad is overlayed on the right half and navigation keys on the left half
+#    of the keyboard. Holding it makes it function normally.
 # 3. Right Alt is set to the Compose key. This way, you would type special
 #    characters by typing intuitive keys in succession (e.g. RAlt+'+e → é). See
 #    the compose table by running `less /usr/share/X11/locale/$LANG/Compose`.
 # 4. Shift + Right Alt is set to the Greek key (e.g. Shift+RAlt+f → φ).
-# 5. Keeping Tab pressed makes it act like a mode switch, which allows me use
-#    specific keys (like the cursor keys) without putting my hands in awkward
-#    positions. I view it as a compatibility key of sorts, for applications 
-#    that don't have vim-like keys. Additionally, if this Tab is pressed in 
-#    conjunction with Shift, a part of the keyboard turns into a number pad, 
-#    which is useful when you don't have a physical number pad. Again, simply
-#    tapping Tab will maintain the original effect. 
-# 6. The 'keynav' program is used for keyboard-driven mouse navigation, in case we *really* need that pointer.
+# 5. Keeping Tab pressed makes it act like a mode switch, which allows for a
+#    third modifier layer above shift.
 #
-# The first three are easy to achieve with `setxkbmap -option compose:ralt 
-# -option caps:super` and `xcape -e Super_L=Escape`. For 4 and 5, we will 
-# make a custom keymap. I would like to find a better way, as switching 
-# keyboard layouts messes it up.
+# The same tweaks can also be achieved with `github.com/david-janssen/kmonad`,
+# but this approach (while harder to understand) uses only programs in the
+# standard repositories.
 #
 # Thanks for inspiration to:
 # - https://www.charvolant.org/doug/xkb/
@@ -32,53 +28,63 @@
 # - https://www.semicomplete.com/projects/keynav/
 # - https://www.x.org/releases/X11R7.7/doc/xorg-docs/input/XKB-Enhancing.html
 # - https://ultimatehackingkeyboard.com/blog/2015/09/09/ansi-or-iso-which-keyboard-layout-is-more-ergonomic
+# - https://wiki.archlinux.org/index.php/X_keyboard_extension
 
 #export DISPLAY=:0
 XKBDIR=/tmp/xkb
-[ -d ${XKBDIR} ] || mkdir -p ${XKBDIR}/{keymap,symbols,types}
+mkdir -p ${XKBDIR}/{keymap,symbols,types}
 
 # Generate a basic keymap.
 setxkbmap -option -option caps:super -print \
-    | sed 's/\(\s*xkb_symbols\s*{\s*include\s*".*\)\("\s*};\s*\)/\1+custom(tab)+custom(special)\2/g' \
+    | sed 's/\(\s*xkb_symbols\s*{\s*include\s*".*\)\("\s*};\s*\)/\1+custom(special)\2/g' \
     > ${XKBDIR}/keymap/custom.xkb
 
 # Add customisations to its `xkb_symbols`. We assign Tab to some weird key so
 # that `xcape` won't get confused. We use the ISO_Level3_Shift key for mode
 # switching, because we can then just add our special keys as level 3 syms.
-cat > ${XKBDIR}/symbols/custom << EOF
+# Check out /usr/share/X11/xkb for codes and use `xev` for inspection.
+tee > ${XKBDIR}/symbols/custom << EOF
 default partial modifier_keys
-xkb_symbols "tab" {
-    key  <TAB> { [ ISO_Level3_Shift, Mode_switch ] };
-    key <I252> { [ Tab, ISO_Left_Tab ] }; 
-};
-
 partial
 xkb_symbols "special" {
-    key <AC03> { [ d, D, Delete ]};
 
-    key <AE07> { [ 7, ampersand, 7, 7 ] };
-    key <AE08> { [ 8, asterisk, 8, 8 ] };
-    key <AE09> { [ 9, parenleft, 9, 9 ] };
-    key <AE10> { [ 0, parenright, 0, equal ] };
-    key <AD06> { [ y, Y, y, asterisk ] };
-    key <AD07> { [ u, U, u, 4 ] };
-    key <AD08> { [ i, I, i, 5 ] };
-    key <AD09> { [ o, O, o, 6 ] };
-    key <AB06> { [ n, N, n, period ] };
-    key <AB07> { [ m, M, m, 0 ] };
-    key <AD10> { [ p, P, p, slash ] };
-    key <AB08> { [ comma, less, Home, parenleft  ] };
-    key <AB09> { [ period, greater, End, parenright ] };
-    key <AB10> { [ slash, question, backslash ] };
+    key <I252> { [ Tab, ISO_Left_Tab, ISO_Next_Group ] };
+    key <I253> { [ ISO_Next_Group ] };
 
-    key <AC06> { [ h, H, Left, plus ]};
-    key <AC07> { [ j, J, Down, 1 ]};
-    key <AC08> { [ k, K, Up, 2 ]};
-    key <AC09> { [ l, L, Right, 3 ]};
-    key <AC10> { [ semicolon, colon, asciitilde, minus ]};
-    key <AC11> { [ apostrophe, quotedbl, grave ] };
+    key  <TAB> { [ ISO_Level3_Shift, Mode_switch ] };
 
     key <RALT> { [ Multi_key, dead_greek ] };
+
+    key <ESC>  { [ Escape, grave ] };
+    key <BKSP> { [ BackSpace, BackSpace, Delete ] };
+    key <AC11> { [ apostrophe, quotedbl, grave ] };
+
+    key <AC01> { [ a, A ], [Left, Home] };
+    key <AC02> { [ s, S ], [Down, Next] };
+    key <AC03> { [ d, D ], [Right, End]};
+    key <AD01> { [ q, Q ], [BackSpace] };
+    key <AD02> { [ w, W ], [Up, Prior] };
+    key <AD03> { [ e, E ], [Delete] };
+
+    key <AE07> { [ 7, ampersand ], [7] };
+    key <AE08> { [ 8, asterisk ], [8] };
+    key <AE09> { [ 9, parenleft ], [9] };
+    key <AE10> { [ 0, parenright ], [equal] };
+    key <AD06> { [ y, Y ], [asterisk] };
+    key <AD07> { [ u, U ], [4] };
+    key <AD08> { [ i, I ], [5] };
+    key <AD09> { [ o, O ], [6] };
+    key <AD10> { [ p, P ], [slash] };
+    key <AC06> { [ h, H, Left ], [plus]};
+    key <AC07> { [ j, J, Down ], [1]};
+    key <AC08> { [ k, K, Up ], [2] };
+    key <AC09> { [ l, L, Right ], [3] };
+    key <AC10> { [ semicolon, colon ], [minus]};
+    key <AB06> { [ n, N ], [period] };
+    key <AB07> { [ m, M ], [0] };
+    key <AB08> { [ comma, less, Home ], [parenleft] };
+    key <AB09> { [ period, greater, End ], [parenright] };
+    key <AB10> { [ slash, question ], [backslash] };
 };
 EOF
 
@@ -87,8 +93,5 @@ xkbcomp -synch -w3 -I${XKBDIR} ${XKBDIR}/keymap/custom.xkb ${DISPLAY}
 
 # (Re)start xcape, to make sure we can still use the original keys by tapping
 # the respective modifiers.
-killall -q -e xcape
-xcape -e 'Super_L=Escape;ISO_Level3_Shift=Tab' -t 150ms
-
-killall -q -e keynav
-keynav &
+pkill xcape
+xcape -e 'Super_L=Escape;ISO_Level3_Shift=Tab;Alt_L=ISO_Next_Group' -t 150ms

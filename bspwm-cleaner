@@ -1,6 +1,8 @@
 #!/bin/sh
 # This script automatically cleans empty bspwm desktops
 
+# See also: bspc monitor --reset-desktops $(seq $(($(bspc query --desktops | wc -l)+2)))
+
 bspc subscribe desktop_focus node_remove node_transfer | while read e; do
     for desktop_id in $(bspc query -D -d '.!occupied.!focused'); do
         bspc desktop "${desktop_id}" --remove || :
