@@ -30,10 +30,6 @@ Currently, the repository contains the following tools:
   [xcape](https://github.com/alols/xcape). 
 - [toggle-pointer](toggle-pointer): A script to disable and re-enable the 
   mouse pointer.
-- [file-new](file-new), [file-open](file-open) and 
-  [file-preview](file-preview) do what they say on the tin; just a way to have 
-  control over how files are created, previewed and opened from my file 
-  manager.
 - [fn](fn) formats text as an unthreatening filename.
 - [download-article](download-article) downloads an internet article to a 
   Markdown file.
