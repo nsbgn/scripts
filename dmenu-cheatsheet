@@ -1,0 +1,29 @@
+#!/bin/bash
+# Show cheats using dmenu/rofi. I bind this script to Meta+? for easy access.
+#
+# Maintain a cheatsheet at `~/.cheatsheet.txt`. Every cheat occupies exactly
+# one line, containing three columns: description, command, and action. The
+# description starts from the `:` symbol. The `action` is the last word on the
+# line and it determines what to do if the user selects a cheat: `TYPE` using
+# `xdotool`, `COPY` to clipboard using `xclip`, or `NONE`.
+#
+# Example ~/.cheatsheet.txt:
+#   GIT Change a previous commit: git commit --amend COPY
+#   NVIM Visual multi-insert: ctrl+v (select) shift+i  NONE
+#   MPV Toggle show progress: shift+o TYPE
+
+CHEAT="${HOME}/.cheatsheet.txt"
+SELECTION="$(< "${CHEAT}" sed 's/ \(NONE\|TYPE\|COPY\)$//' | dmenu -i -p '')"
+[ -z "${SELECTION}" ] && exit 1
+COMMAND=$(echo "${SELECTION}" | cut -d':' -f2 | xargs)
+ACTION=$(grep "^${SELECTION}" "${CHEAT}" | tail -n 1 | sed 's/.*\s//g')
+case "${ACTION}" in
+    COPY)
+        notify-send "Copied: ${COMMAND}"
+        echo "${COMMAND}" | xclip -in -selection clipboard
+        ;;
+    TYPE)
+        notify-send "Typing: ${COMMAND}"
+        xdotool key --clearmodifiers ${COMMAND}
+        ;;
+esac

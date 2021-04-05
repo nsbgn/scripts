@@ -8,6 +8,6 @@ source ~/.bashrc
 find $PASSWORD_STORE_DIR/ -iname '*.gpg' \
     | sed "s|^$PASSWORD_STORE_DIR/\(.*\).gpg|\1|" \
     | sort \
-    | dmenu -p "" $DMENU_ARGS \
+    | dmenu -p "" \
     | xargs --no-run-if-empty pass show \
     | xdotool type --clearmodifiers --file -

@@ -42,7 +42,8 @@ setxkbmap -option -option caps:super -print \
 # Add customisations to its `xkb_symbols`. We assign Tab to some weird key so
 # that `xcape` won't get confused. We use the ISO_Level3_Shift key for mode
 # switching, because we can then just add our special keys as level 3 syms.
-# Check out /usr/share/X11/xkb for codes and use `xev` for inspection.
+# Check out /usr/share/X11/xkb for codes and /usr/include/X11/keysymdef.h for
+# symbols. Use `xev` for inspection.
 tee > ${XKBDIR}/symbols/custom << EOF
 default partial modifier_keys
 partial
