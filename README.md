@@ -1,9 +1,12 @@
 Scripts
 ===============================================================================
 
-Here you will find nifty scripts I wrote to make my life easier. I tried to 
-make them small and easy to change, so have a look around and do with them as 
-you please. I'm fond of using [dmenu](http://tools.suckless.org/dmenu/) / 
+Here you will find nifty scripts I wrote to make my life easier. 
+
+Most of them are pretty messy and only intended for personal use, but I did 
+try to make them small and easy to change, so have a look around and do with 
+them as you please. I'm fond of using 
+[dmenu](http://tools.suckless.org/dmenu/) / 
 [rofi](https://github.com/DaveDavenport/rofi) and 
 [jq](https://stedolan.github.io/jq/), because they make quick DIY scripts 
 easy.
