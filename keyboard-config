@@ -18,8 +18,8 @@
 #    third modifier layer above shift.
 #
 # The same tweaks can also be achieved with `github.com/david-janssen/kmonad`,
-# but this approach (while harder to understand) uses only programs in the
-# standard repositories.
+# but that approach (while certainly easier to understand) needs an additional
+# binary that isn't in the standard repositories.
 #
 # Thanks for inspiration to:
 # - https://www.charvolant.org/doug/xkb/

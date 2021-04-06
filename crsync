@@ -5,7 +5,7 @@ in sync. It also automatically mounts and unmounts required directories.
 Intended for myself, but it may be useful. Requires `pmount` and `rsync` in
 your $PATH.
 
-For example, the YAML configuration (default: ~/.config/bak/config.yaml):
+For example, the YAML configuration (default: ~/.config/crsync/config.yaml):
 
     mount:
         - dir: /media/toshiba
@@ -21,7 +21,7 @@ For example, the YAML configuration (default: ~/.config/bak/config.yaml):
             - /media/toshiba/archive/
         /media/data/photos: /media/sandisk/
 
-Then, calling `bak --push /media/sandisk` would push local changes to just
+Then, calling `crsync --push /media/sandisk` would push local changes to just
 those remote directories that start with /media/sandisk, before ensuring that
 /media/sandisk is mounted. To find out the UUID of a disk, run `blkid`.
 """
@@ -235,7 +235,7 @@ if __name__ == '__main__':
     )
 
     parser.add_argument(
-        '--config', default='~/.config/bak/config.yaml',
+        '--config', default='~/.config/crsync/config.yaml',
         help="configuration file")
     parser.add_argument(
         '--log',
