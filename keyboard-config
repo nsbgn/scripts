@@ -60,12 +60,12 @@ xkb_symbols "special" {
     key <BKSP> { [ BackSpace, BackSpace, Delete ] };
     key <AC11> { [ apostrophe, quotedbl, grave ] };
 
-    key <AC01> { [ a, A ], [Left, Home] };
-    key <AC02> { [ s, S ], [Down, Next] };
-    key <AC03> { [ d, D ], [Right, End]};
-    key <AD01> { [ q, Q ], [BackSpace] };
-    key <AD02> { [ w, W ], [Up, Prior] };
-    key <AD03> { [ e, E ], [Delete] };
+    key <AC01> { [ a, A, Left ], [Left, Home] };
+    key <AC02> { [ s, S, Down ], [Down, Next] };
+    key <AC03> { [ d, D, Right ], [Right, End]};
+    key <AD01> { [ q, Q, BackSpace ], [BackSpace] };
+    key <AD02> { [ w, W, Up ], [Up, Prior] };
+    key <AD03> { [ e, E, Delete ], [Delete] };
 
     key <AE07> { [ 7, ampersand ], [7] };
     key <AE08> { [ 8, asterisk ], [8] };
