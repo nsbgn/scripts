@@ -10,11 +10,11 @@
 # 3. Tapping Left Alt switches the keyboard group. On the second group, a
 #    numpad is overlayed on the right half and navigation keys on the left half
 #    of the keyboard. Holding it makes it function normally.
-# 3. Right Alt is set to the Compose key. This way, you would type special
+# 4. Right Alt is set to the Compose key. This way, you would type special
 #    characters by typing intuitive keys in succession (e.g. RAlt+'+e → é). See
 #    the compose table by running `less /usr/share/X11/locale/$LANG/Compose`.
-# 4. Shift + Right Alt is set to the Greek key (e.g. Shift+RAlt+f → φ).
-# 5. Keeping Tab pressed makes it act like a mode switch, which allows for a
+# 5. Shift + Right Alt is set to the Greek key (e.g. Shift+RAlt+f → φ).
+# 6. Keeping Tab pressed makes it act like a mode switch, which allows for a
 #    third modifier layer above shift.
 #
 # The same tweaks can also be achieved with `github.com/david-janssen/kmonad`,
@@ -49,7 +49,7 @@ default partial modifier_keys
 partial
 xkb_symbols "special" {
 
-    key <I252> { [ Tab, ISO_Left_Tab, ISO_Next_Group ] };
+    key <I252> { [ Tab, ISO_Left_Tab ] };
     key <I253> { [ ISO_Next_Group ] };
 
     key  <TAB> { [ ISO_Level3_Shift, Mode_switch ] };
