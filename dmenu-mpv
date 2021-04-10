@@ -68,8 +68,7 @@ case "$1" in
         ;;
     -m|--monitor)
         sleep 1
-        playerctl --follow --format '{{status}}  {{title}} ({{artist}} - {{album}})' metadata \
-            | awk -v l=100 '{gsub(/^Playing/,"");gsub(/^Paused/,"");gsub(/^Stopped.*/,""); if (length($0) > l) print substr($0, 1, l-3) "..."; else print; fflush();}'
+        playerctl --follow --format '{{status}}  {{title}} ({{artist}} - {{album}})' metadata | awk -v l=100 '{gsub(/^Playing/,"");gsub(/^Paused/,"");gsub(/^Stopped.*/,""); if (length($0) > l) print substr($0, 1, l-3) "..."; else print; fflush();}'
         ;;
     -t|--toggle)
         playerctl --player=mpv play-pause
