@@ -58,17 +58,18 @@ case "$1" in
     "")
         update-db
         INPUT=$(shuf "$CACHE" | dmenu -p "" -i)
-	if [ "$INPUT" ]; then
-		play "$MUSIC/$INPUT"
-	fi 
+        if [ "$INPUT" ]; then
+            play "$MUSIC/$INPUT"
+        fi 
         ;;
     -r|--random) 
         update-db
         play "$MUSIC/$(shuf -n1 $CACHE)"
         ;;
     -m|--monitor)
-        sleep 1; playerctl --follow --format '{{status}}  {{title}} ({{artist}} - {{album}})' metadata \
-            | sed --unbuffered 's/^Playing//g;s/^Paused//;s/^Stopped.*//g'
+        sleep 1
+        playerctl --follow --format '{{status}}  {{title}} ({{artist}} - {{album}})' metadata \
+            | awk -v l=100 '{gsub(/^Playing/,"");gsub(/^Paused/,"");gsub(/^Stopped.*/,""); if (length($0) > l) print substr($0, 1, l-3) "..."; else print; fflush();}'
         ;;
     -t|--toggle)
         playerctl --player=mpv play-pause
