@@ -7,9 +7,9 @@
 #    to control my window manager.
 # 2. Tapping CapsLock triggers Escape. This is useful for vim-style
 #    keybindings.
-# 3. Tapping Left Alt switches the keyboard group. On the second group, a
+# 3. Tapping Right Alt switches the keyboard group. On the second group, a
 #    numpad is overlayed on the right half and navigation keys on the left half
-#    of the keyboard. Holding it makes it function normally.
+#    of the keyboard. Holding it should switch it temporarily. TODO
 # 4. Right Alt is set to the Compose key. This way, you would type special
 #    characters by typing intuitive keys in succession (e.g. RAlt+'+e → é). See
 #    the compose table by running `less /usr/share/X11/locale/$LANG/Compose`.
@@ -51,12 +51,15 @@ xkb_symbols "special" {
 
     key <I252> { [ Tab, ISO_Left_Tab ] };
     key <I253> { [ ISO_Next_Group ] };
+    key <I254> { [ Escape ] };
 
     key  <TAB> { [ ISO_Level3_Shift, Mode_switch ] };
+    key <RTSH> { [ Mode_switch ] };
 
     key <RALT> { [ Multi_key, dead_greek ] };
+    key <LWIN> { [ Super_L, Escape ] };
 
-    key <ESC>  { [ Escape, grave ] };
+    key <ESC>  { [ asciitilde, grave ] };
     key <BKSP> { [ BackSpace, BackSpace, Delete ] };
     key <AC11> { [ apostrophe, quotedbl, grave ] };
 
@@ -95,4 +98,4 @@ xkbcomp -synch -w3 -I${XKBDIR} ${XKBDIR}/keymap/custom.xkb ${DISPLAY}
 # (Re)start xcape, to make sure we can still use the original keys by tapping
 # the respective modifiers.
 pkill xcape
-xcape -e 'Super_L=Escape;ISO_Level3_Shift=Tab;Alt_L=ISO_Next_Group' -t 150ms
+xcape -e 'Super_L=Escape;ISO_Level3_Shift=Tab;Mode_switch=ISO_Next_Group' -t 150ms
