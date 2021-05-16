@@ -1,0 +1,7 @@
+#!/bin/bash
+
+find $HOME/library -type f -print \
+    | sed "s|^$HOME/library/\(.*\)|\1|" \
+    | shuf \
+    | dmenu -p "" -i \
+    | xargs --no-run-if-empty -I{} "$HOME/.config/lf/open.sh" "$HOME/library/"{}
