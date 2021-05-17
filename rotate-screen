@@ -6,15 +6,19 @@
 # - https://github.com/alesguzik/linux_detect_tablet_mode
 
 MONITOR="${MONITOR:-eDP1}"
-TOUCHSCREEN="${TOUCHSCREEN:-10}" # ELAN238E:00 04F3:2894"
+TOUCHSCREENS=(10 16) # ELAN238E:00 04F3:2894 & ELAN238E:00 04F3:2894 Pen
 PATTERN='\s\(\w\+\s\)*[0-9]\+x[0-9]\++[0-9]\++[0-9]\sleft'
 
 if xrandr -q | grep -q "^${MONITOR}${PATTERN}"; then
     xrandr --output "$MONITOR" --rotate normal
-    xinput set-prop "$TOUCHSCREEN" \
-        --type=float "Coordinate Transformation Matrix" 0 0 0 0 0 0 0 0 0
+    for T in "${TOUCHSCREENS[@]}"; do
+        xinput set-prop "$T" \
+            --type=float "Coordinate Transformation Matrix" 0 0 0 0 0 0 0 0 0
+    done
 else
     xrandr --output "$MONITOR" --rotate left
-    xinput set-prop "$TOUCHSCREEN" \
-        --type=float "Coordinate Transformation Matrix" 0 -1 1 1 0 0 0 0 1
+    for T in "${TOUCHSCREENS[@]}"; do
+        xinput set-prop "$T" \
+            --type=float "Coordinate Transformation Matrix" 0 -1 1 1 0 0 0 0 1
+    done
 fi
