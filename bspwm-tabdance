@@ -1,10 +1,11 @@
 #!/bin/bash
-# This script makes it easy to drag the focused window through bspwm's tiling
-# tree in an intuitive way.
-# This is still a work-in-progress.
+# This script makes it easy to "push" the focused window into and out of tabs,
+# through bspwm's tiling tree, in an intuitive way --- that is, with only
+# compass directions to provide.
 #
 # Usage:
-#   bspwm-push (north|east|south|west)
+#   bspwm-tabdance push (north|east|south|west)
+#   bspwm-tabdance run COMMAND...
 #
 # There are basically four actions, plus a nop if we are the root window. These
 # actions depend on the compass direction we move in (a1) compared to the
@@ -14,8 +15,8 @@
 #   brother window
 #   -   Otherwise, we only have to turn the windows
 
-# Find out the angle of compass directions
-function angle {
+# Degrees to turn the compass direction $2 such that it aligns with $1
+angle () {
     local deg=0 a1="$1" a2="$2"
     while [ "$deg" -lt 360 -a ! "$a1" == "$a2" ]; do
         deg=$(($deg + 90))
@@ -29,15 +30,8 @@ function angle {
     echo "$deg"
 }
 
-# Rotate orientation without rotating children
-function turn {
-    bspc node "$1" --rotate "$((360 - $2))"
-    bspc node "$1#1" --rotate "$(($2))"
-    bspc node "$1#2" --rotate "$(($2))"
-}
-
-# Direction of the window in relation to parent
-function compass {
+# In what compass direction is the current window in relation to its parent?
+compass () {
     if bspc query -N -n "@parent/1.focused" &> /dev/null; then
         if bspc query -N -n "@parent.horizontal" &> /dev/null
         then echo north
@@ -53,20 +47,84 @@ function compass {
     fi
 }
 
-dir="$1"
-a=$(angle "$dir" "$(compass)")
-if [ "$a" -eq 0 ]; then
-    bspc node "@parent/parent" --presel-dir "$1"
+# Get wid of root window
+get_root_wid () {
+    xwininfo -root | awk '/Window id:/{print $4}'
+}
+
+# Get children of tabbed
+get_clients () {
+    local WID="${1}"
+    xwininfo -id "${WID}" -children | \
+        sed -n '/[0-9]\+ \(child\|children\):/,$s/ \+\(0x[0-9a-z]\+\).*/\1/p'
+}
+
+# Get class of a window ID
+get_class () {
+    local WID="${1}"
+    xprop -id "${WID}" | sed -n '/WM_CLASS/s/.*, "\(.*\)"/\1/p'
+}
+
+# Rotate orientation $1 degrees without rotating children
+turn () {
+    local DEG="$1"
+    bspc node "@parent" --rotate "$((360 - ${DEG}))"
+    bspc node "@parent#1" --rotate "${DEG}"
+    bspc node "@parent#2" --rotate "${DEG}"
+}
+
+# Add window $1 into a tab with window $2
+move_tab () {
+    local SRC="${1}" DEST="${2}"
+
+    # If window $2 was not already tabbed, make it so
+    if [ "$(get_class "${DEST}")" != "tabbed" ]; then
+        DEST="$(tabbed -k -c -d)"
+        xdotool windowreparent "${2}" "${DEST}"
+    fi
+
+    xdotool windowreparent "${SRC}" "${DEST}"
+}
+
+DIR="${1}"
+ANGLE=$(angle "${DIR}" "$(compass)")
+SRC="$(bspc query -N -n focused)"
+DEST="$(bspc query -N -n ${DIR})"
+
+# If the source window is tabbed, take the focused window out of its tab and
+# put it on the desired side of the tabbed window, should it still exist.
+if [ "$(get_class "${SRC}")" == "tabbed" ]; then
+
+    TAB="$(get_clients "${SRC}" | head -1)"
+    xdotool windowreparent "${TAB}" "$(get_root_wid)"
+    if bspc query -N -n "${SRC}"; then
+        bspc node "${SRC}" --presel-dir "${DIR}"
+        bspc node "${TAB}" --to-node "${SRC}"
+
+        # If there is only one window left, untab it?
+        #if [ "$(get_clients "${SRC}" | wc -l)" -eq 1 ]; then
+        #fi
+    fi
+
+# If not, and we are already aligned in the destination direction, we need to
+# jump to the opposite end of the subtree
+elif [ "${ANGLE}" -eq 0 ]; then
+    bspc node "@parent/parent" --presel-dir "${DIR}"
     bspc node --to-node "@parent/parent"
-elif [ "$a" -eq 180 ]; then
-    local odir
-    case "$dir" in
-        north|south) odir=west ;;
-        east|west) odir=north ;;
-    esac
-    bspc node "$dir" --presel-dir "$odir"
-    bspc node --to-node "$dir"
+
+# If we are aligned in the opposite direction, we want to combine the current
+# focused window in a tab with its sibling
+elif [ "${ANGLE}" -eq 180 ]; then
+
+    move_tab "$SRC" "$DEST"
+    #local odir
+    #case "$dir" in
+    #    north|south) odir=west ;;
+    #    east|west) odir=north ;;
+    #esac
+    #bspc node "$DIR" --presel-dir "$odir"
+    #bspc node --to-node "$DIR"
 else
-    turn "@parent" "$a"
+    turn "${ANGLE}"
 fi
 
