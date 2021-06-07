@@ -86,6 +86,16 @@ move_tab () {
     xdotool windowreparent "${SRC}" "${DEST}"
 }
 
+# Run a new terminal in a tab
+run_terminal () {
+    local SRC="${1}"
+    if [ ! -z "${SRC}" -a "$(get_class "${SRC}")" == "tabbed" ]; then
+        urxvtc -embed "${SRC}"
+    else
+        tabbed -k -c urxvtc -embed
+    fi
+}
+
 DIR="${1}"
 ANGLE=$(angle "${DIR}" "$(compass)")
 SRC="$(bspc query -N -n focused)"
