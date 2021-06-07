@@ -1,24 +1,21 @@
 #!/bin/sh
 
-# Returns the current working directory of the focused urxvtc window (and
-# perhaps other software too).
+# Hacky wrapper around xcwd to work with urxvtc. First tries to draw from the
+# window title, then uses xcwd. Only works when your window titles are set up
+# like mine (see dotfiles).
 
 # Written because https://github.com/schischi/xcwd does not work for urxvtc,
 # due to it being a daemon. Inspired by https://github.com/wknapik/lastcwd and
-# https://gist.github.com/viking/5851049, but faster.
+# https://gist.github.com/viking/5851049, but faster. See git history for the
+# previous, also imperfect way using window IDs.
 
-# We first find the window ID of the active window. Then we find the newest
-# process that has the same window ID in its initial environment, and has its
-# /proc/$PID/cwd set. Otherwise, we just return the home directory.
+CWD="$(xdotool getactivewindow getwindowname \
+    | tr -s ' ' | cut -d' ' -f2 | sed "s|^~|$HOME|g")"
+if [ -f "${CWD}" ]; then
+    dirname "${CWD}"
+elif [ -d "${CWD}" ]; then
+    echo "${CWD}"
+else
+    xcwd
+fi
 
-# This only works if the terminal didn't spawn another process in the
-# background that also has a cwd and is newer than the process you are actually
-# working with. To filter out at least some of these cases, we set -N --ppid 1
-# (to say that the process must not be a direct child of the root process)
-
-(echo "$HOME"; WINDOWID="$(xdotool getactivewindow)" &&
- ps e -N --ppid 1 --sort=+pid -o pid,args \
-  | grep --invert-match xclip \
-  | sed -n "s|^\s*\([0-9]\+\) .*WINDOWID=${WINDOWID}.*|\\1|p" \
-  | xargs -d'\n' -I{} readlink /proc/{}/cwd
-) | tail -n 1
