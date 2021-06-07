@@ -1,8 +1,9 @@
 #!/bin/bash
-# Utility for making quick, sensible scans. Potographs are automatically
+# Utility for making quick, sensible scans. Photographs are automatically
 # separated, cropped and derotated, whereas documents are monochrome and
-# heavily compressed. `fmwconcepts.com/imagemagick/multicrop` was an
-# inspiration, but this is written from scratch since multicrop is non-free.
+# heavily compressed, combined into a single OCR'ed PDF.
+# `fmwconcepts.com/imagemagick/multicrop` was an inspiration for the photo
+# portion, but this is written from scratch since multicrop is non-free.
 #
 # See also:
 # - https://askubuntu.com/questions/106769/scanning-from-terminal
@@ -10,7 +11,6 @@
 # - https://imagemagick.org/
 
 set -euo pipefail
-IFS=$'\n\t'
 
 TMP=$(mktemp -d "${TMPDIR:-/tmp}/$(basename "$0").XXXXX")
 function finalize {
@@ -27,19 +27,20 @@ DEFAULT_SCAN_TYPE=document
 DEFAULT_EXT=png
 DEFAULT_QUALITY=90
 USAGE="$(basename "$0") [-d|--dpi N] [-f|--fuzz N] [-g|--grid N] 
-    [-i|--input FILE] [--document|--photo] [TITLE]...
+    [-i|--input FILE] [--document|--photo] [-t TITLE] [FILE]...
 
 where:
+    -t|--title T   Title for the produced file
     -d|--dpi N     Density resolution of scan
     -f|--fuzz N    Tolerance for non-exact color matches (default: ${DEFAULT_FUZZ})
     -g|--grid N    Grid lines for detection of individual photos (default: ${DEFAULT_GRID})
     -q|--quality N Quality of JPEG output (default: ${DEFAULT_QUALITY})
     --document     Interpret scan as a document
     --photo        Interpret scan as one or more photographs
-    --unprocessed  Just copy raw scan
-    --input FILE   Skip scanning, only process image given in FILE"
+    --raw          Produce scan without further processing
+    FILE           When FILEs are given, skip scanning, only process given files"
 
-POSITIONALS=()
+INPUTS=()
 while [[ $# -gt 0 ]]; do
     case "${1}" in
         -h|--help)
@@ -50,8 +51,8 @@ while [[ $# -gt 0 ]]; do
             shift
             shift
         ;;
-        -i|--input)
-            INPUT="${2}"
+        -t|--title)
+            TITLE="${2}"
             shift
             shift
         ;;
@@ -60,8 +61,8 @@ while [[ $# -gt 0 ]]; do
             shift
             shift
         ;;
-        --unprocessed)
-            SCAN_TYPE=unprocessed
+        --raw)
+            SCAN_TYPE=raw
             EXT=jpg
             DEFAULT_DPI=300
             shift
@@ -82,7 +83,7 @@ while [[ $# -gt 0 ]]; do
             echo "Unknown option \"${1}\"." >&2; exit 1
         ;;
         *)
-            POSITIONALS+=("$1")
+            INPUTS+=("$1")
             shift
         ;;
     esac
@@ -105,7 +106,7 @@ NUMBER=$((${EXISTING_NUMBER:-0} + 1))
 
 # SCANNING ##################################################################
 
-# Scan an image, but only if the ${INPUT} variable is empty
+# Scan an image, but only if the ${INPUTS} array is empty
 if [ -z "${INPUT:-}" ] ; then
     INPUT="${TMP}/scan.pnm"
     echo "Starting up scanner..." >&2
@@ -124,11 +125,13 @@ fi
 # IMAGE PROCESSING ###########################################################
 
 
-if [ "${SCAN_TYPE}" == "unprocessed" ]; then
+if [ "${SCAN_TYPE}" == "raw" ]; then
 
-    OUTPUT="${TITLE}-${NUMBER}.${EXT}"
-    convert "${INPUT}" -quality ${QUALITY}% "${OUTPUT}"
-    echo "Wrote \"${OUTPUT}\"..." >&2
+    for INPUT in "${INPUTS[@]}"; do
+        OUTPUT="${TITLE}-${NUMBER}.${EXT}"
+        convert "${INPUT}" -quality ${QUALITY}% "${OUTPUT}"
+        echo "Wrote \"${OUTPUT}\"..." >&2
+    done
 
 elif [ "${SCAN_TYPE}" == "document" ]; then
 

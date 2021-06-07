@@ -1,5 +1,6 @@
 #!/bin/bash
-# Utility for making quick scans including OCR. Also check out tiff2pdf.
+# Utility for making quick scans for documents, all pages combined into a
+# single OCR'ed PDF. Also check out tiff2pdf.
 set -euo pipefail
 
 DPI=150
@@ -9,6 +10,12 @@ function finalize {
     rm -rf "${TMP}"
 }
 trap finalize EXIT
+
+ARGS=(
+    -colorspace gray
+    #-sigmoidal-contrast 20,50%
+    #-posterize 8
+)
 
 SCANS=()
 while true; do
@@ -21,9 +28,7 @@ while true; do
         --format tiff \
     | convert TIFF:- \
         -strip \
-        -colorspace gray \
-        -sigmoidal-contrast 20,50% \
-        -posterize 8 \
+        "${ARGS[@]}" \
         -background white \
         -page a4 \
         PDF:- \
@@ -44,4 +49,4 @@ while true; do
 done
 
 # Combine pages
-pdftk ${SCANS[@]} cat output "$1"
+pdftk ${SCANS[@]} cat output "${1:-untitled}"
