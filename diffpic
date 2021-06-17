@@ -1,32 +1,20 @@
 #!/bin/bash
-# This script helps find duplicate photos and delete the ones that have the
-# (subjective) worst quality. We use `findimagedupes` to find visual
-# duplicates. Note that it might be useful to first use `fdupes` to find binary
-# duplicates. Once duplicates are found, they are displayed with `sxiv`. In
-# sxiv, mark files with `m` to move them to trash, then quit with `q` for the
-# next batch.
-# Dependencies: findimagedupes exif sxiv
+# This script helps find duplicate photos in a directory, and delete the ones
+# that have the (subjective) worst quality.
+#
+# 1. We first use `fdupes` to find binary duplicates.
+# 2. Then we use `findimagedupes` to find visual duplicates. Those duplicates are
+# shown with `feh` in batches, allowing you to use Ctrl+Del to delete the ones
+# you don't like. 
+# Dependencies: `findimagedupes` `fdupes` `feh` (`zenity`, `xargs` for renaming)
 set -euo pipefail
 
-# Prepare script for displaying additional image info in sxiv, if no such
-# script exists yet (still a bit invasive, you might not want this)
-INFODIR="$(xdg-user-dir CONFIG)/sxiv/exec"
-INFO="${INFODIR}/image-info"
-if [ ! -f "${INFO}" ]; then
-mkdir -p ${INFODIR}
-tee "${INFO}" 1> /dev/null << EOF
-#!/bin/bash
-F="\$1"
-WIDTH="\$2"
-HEIGHT="\$3"
-SIZE="\$(ls -lh "\$F" | cut -d' ' -f5)"
-TIME="\$(exif --machine-readable --tag=DateTime "\$F" 2> /dev/null || echo "!EXIF")"
-MODIFIED="(mod. \$(date -r "\$F" '+%Y-%m-%d'))"
-NAME="\$(basename "\$F")"
-echo \${NAME} \${WIDTH}x\${HEIGHT} \${SIZE} \${TIME} \${MODIFIED}
-EOF
-chmod +x "${INFO}"
-fi
+DIR=${1:-${PWD}}
+
+echo "Finding binary duplicates..." >&2
+fdupes --delete --noempty --time --size "${DIR}"
+
+echo "Finding visual duplicates..." >&2
 
 # Prepare temporary directory and make sure it will be removed afterward
 TMP=$(mktemp -d "${TMPDIR:-/tmp}/$(basename "$0").XXXXX")
@@ -38,12 +26,24 @@ trap finalize EXIT
 # Prepare script for viewing & subsequent removal of duplicates
 tee "${TMP}/custom.sh" 1> /dev/null << EOF
 VIEW(){
-    sxiv "\$@" -o \
-        | xargs -I{} gio trash {}
+    feh \
+        --borderless \
+        --auto-rotate \
+        --scale-down \
+        --zoom fill \
+        --draw-tinted \
+        --draw-actions \
+        --draw-filename \
+        --caption-path "." \
+        --sort filename \
+        --info "exiv2 %F | grep -v ':\s*$'; echo Size: %w×%h - %Sb; echo -n Modification:; date -r %F '+%%Y-%%m-%%d %%R'" \
+        --edit \
+        --action1 '[rename]zenity --entry --text "Rename:" --entry-text %F | xargs mv %F' \
+        --action9 '[remove]zenity --question && gio trash %F' \
+        "\$@"
+    exit 0
 }
 EOF
-
-# Find duplicates in current directory and execute script
 find "${DIR:-.}" -mindepth 1 -maxdepth 1 -regex '.*\.\(png\|jpg\|jpeg\|tiff\|bmp\)' |
     findimagedupes --script="${TMP}/script.sh" --include-file="${TMP}/custom.sh" -
 sh ${TMP}/script.sh
