@@ -1,0 +1,12 @@
+#!/bin/sh
+# Show a stylized overview of EPUB metadata. Intended for previews.
+
+unzip -p "$1" "$(zipinfo -1 "$1" | grep .opf$)" \
+    | xmlstarlet sel \
+    -N dc="http://purl.org/dc/elements/1.1/" \
+    -N opf="http://www.idpf.org/2007/opf" -T -t \
+    -o '<i>Title:</i> ' -v '/opf:package/opf:metadata/dc:title' -n \
+    -o '<i>Author:</i> ' -v '/opf:package/opf:metadata/dc:creator' -n \
+    -o '<i>Publisher:</i> ' -v '/opf:package/opf:metadata/dc:publisher' -n \
+    -n -v '/opf:package/opf:metadata/dc:description' -n \
+    | sed 's/<p>//g;s/<\/p>/\n/g;s/<i>/[3m/g;s/<\/i>/[0m/g;;s/<b>/[1m/g;s/<\/b>/[0m/g' \
