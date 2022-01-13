@@ -1,7 +1,7 @@
 #!/bin/sh
 # Show a stylized overview of EPUB metadata. Intended for previews.
 
-unzip -p "$1" "$(zipinfo -1 "$1" | grep .opf$)" \
+unzip -p "$1" "$(zipinfo -1 "$1" | grep '^[^_].*.opf$')" \
     | xmlstarlet sel \
     -N dc="http://purl.org/dc/elements/1.1/" \
     -N opf="http://www.idpf.org/2007/opf" -T -t \
