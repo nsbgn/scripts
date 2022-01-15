@@ -1,0 +1,34 @@
+#!/bin/sh
+# The only thing I ever do with my music player is listen to albums, preferably
+# from start to finish. I was frustrated with most music player interfaces as
+# they were sluggish and hard to subject to my will. I wrote this simple script
+# that uses standard UNIX tools to control mpv through IPC.
+#
+# sudo apt-get install mpv fzf xdg-dirs socat find shuf sort
+
+MUSIC="$(xdg-user-dir MUSIC)"
+CACHE="$HOME/.cache/mpvcache"
+SOCKET="/tmp/mpvsocket"
+PLAYLIST="/tmp/mpvplaylist"
+
+# Test if an instance of mpv is already listening; if not, start one
+if ! test -S "$SOCKET" && socat /dev/null "$SOCKET"; then
+    mpv --idle --no-terminal --no-audio-display --input-ipc-server="$SOCKET" &
+fi
+
+# Update the music database if it has changed
+if [ ! -f "$CACHE" -o "$MUSIC" -nt "$CACHE" ]; then
+    find -L "$MUSIC" -type d -links 2 -printf '%P\n' > "$CACHE"
+fi
+
+# Query for album to play, and make corresponding playlist
+shuf "$CACHE" | fzf \
+    --preview "ls $MUSIC/{} | sed -n 's/\(^[0-9][0-9] .*\)\.[[:alnum:]]\+/\1/p'" \
+    | xargs -I{} find "$MUSIC/{}" -regex '.*\.\(mp3\|webm\|m4a\|flac\|ogg\|wav\)' \
+    | sort > "$PLAYLIST"
+
+# Play the list
+socat - "$SOCKET" 2>&1 > /dev/null << EOF
+{"command":["loadlist","$PLAYLIST","replace"]}
+{"command":["set","pause","no"]}
+EOF
