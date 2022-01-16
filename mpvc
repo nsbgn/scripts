@@ -1,12 +1,30 @@
 #!/bin/sh
-# You can use the excellent <github.com/hoyon/mpv-mpris> to add MPRIS support
-# to `mpv`, so that it can be controlled and followed via `dbus`, using such
-# programs as `playerctl`. However, this script controls it purely via `mpv`'s
-# own IPC mechanism.
-# See <https://mpv.io/manual/stable/>.
+# The only thing I ever do with my music player is listen to albums, preferably
+# from start to finish. I was frustrated with most music player interfaces as
+# they were sluggish and hard to subject to my will. This simply queries the
+# user for an album to play using `fzf`, then gets out of the way.
+#
+# Note that you can use the excellent <github.com/hoyon/mpv-mpris> to add MPRIS
+# support to `mpv`, so that it can be controlled and followed via `dbus`, using
+# such programs as `playerctl`. However, this script controls it purely via
+# standard UNIX tools and `mpv`'s own IPC mechanism.
+# See <https://mpv.io/manual/stable/#json-ipc>.
+#
+# Dependencies:
+#   (Debian) apt install mpv jq netcat-netbsd fzf xdg-dirs find shuf sort
+
+# TODO: Show play/pause as first option if something is already in mpv's
+# playlist
 
 SOCK="/tmp/mpvsocket"
 MUSIC="$(xdg-user-dir MUSIC)"
+CACHE="$HOME/.cache/mpvcache"
+PLAYLIST="/tmp/mpvplaylist"
+
+# Test if an instance of mpv is already listening; if not, start one
+if ! test -S "$SOCK"; then
+    mpv --idle --no-terminal --no-audio-display --input-ipc-server="$SOCK" &
+fi
 
 case $1 in
     pause)
@@ -16,7 +34,7 @@ case $1 in
     next)
         echo '{"command": ["playlist-next"]}' | nc -UN "$SOCK" ;;
     monitor)
-        echo '{"command": ["observe_property", 1, "metadata"]}' \
+        echo '{"command": ["observe_property", 1, "loadlist"]}' \
         | nc -U "$SOCK" \
         | jq ;;
     list)
@@ -24,8 +42,25 @@ case $1 in
         | jq --arg MUSIC $MUSIC/ -r '.data[] | (
             if .playing then "▶ " elif .current then "⏸ " else "  " end
             + (.filename | ltrimstr($MUSIC) | rtrimstr(".mp3")))' ;;
+    pick)
+        # Update the music database if it has changed
+        if [ ! -f "$CACHE" -o "$MUSIC" -nt "$CACHE" ]; then
+            find -L "$MUSIC" -type d -links 2 -printf '%P\n' > "$CACHE"
+        fi
+
+        # Query for album to play, and make corresponding playlist
+        shuf "$CACHE" \
+        | fzf --preview "ls \"$MUSIC\"/{} | sed -n 's/\(.*\)\.[[:alnum:]]\+$/\1/p'" \
+        | xargs -I{} find "$MUSIC/{}" -regex '.*\.\(mp3\|webm\|m4a\|flac\|ogg\|wav\)' \
+        | sort > "$PLAYLIST"
+
+        # Play it
+        [ -s "$PLAYLIST" ] && echo '
+            {"command":["loadlist","'$PLAYLIST'","replace"]}
+            {"command":["set","pause","no"]}' | nc -UN "$SOCK"
+        ;;
     *)
-        echo "Usage: $(basename $0) <pause|prev|next|monitor|list>" >&2
+        echo "Usage: $(basename $0) <pick|pause|prev|next|monitor|list>" >&2
         exit 1
         ;;
 esac
