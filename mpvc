@@ -11,14 +11,14 @@
 # See <https://mpv.io/manual/stable/#json-ipc>.
 #
 # Dependencies:
-#   (Debian) apt install mpv jq netcat-netbsd fzf xdg-dirs find shuf sort
+#   (Debian) apt install mpv jq netcat-netbsd fzf xdg-dirs fd-find shuf sort
 
 # TODO: Show play/pause as first option if something is already in mpv's
 # playlist
 
-SOCK="/tmp/mpvsocket"
+FD="$(which fdfind || which fd)"
 MUSIC="$(xdg-user-dir MUSIC)"
-CACHE="$HOME/.cache/mpvcache"
+SOCK="/tmp/mpvsocket"
 PLAYLIST="/tmp/mpvplaylist"
 
 # Test if an instance of mpv is already listening; if not, start one
@@ -43,15 +43,11 @@ case $1 in
             if .playing then "▶ " elif .current then "⏸ " else "  " end
             + (.filename | ltrimstr($MUSIC) | rtrimstr(".mp3")))' ;;
     pick)
-        # Update the music database if it has changed
-        if [ ! -f "$CACHE" -o "$MUSIC" -nt "$CACHE" ]; then
-            find -L "$MUSIC" -type d -links 2 -printf '%P\n' > "$CACHE"
-        fi
-
         # Query for album to play, and make corresponding playlist
-        shuf "$CACHE" \
-        | fzf --preview "ls \"$MUSIC\"/{} | sed -n 's/\(.*\)\.[[:alnum:]]\+$/\1/p'" \
-        | xargs -I{} find "$MUSIC/{}" -regex '.*\.\(mp3\|webm\|m4a\|flac\|ogg\|wav\)' \
+        $FD . --base-directory "$MUSIC" --type d --min-depth 2 \
+        | shuf \
+        | fzf --exact --preview "ls \"$MUSIC\"/{} | sed -n 's/\(.*\)\.[[:alnum:]]\+$/\1/p'" \
+        | xargs -I{} $FD '.(mp3|webm|m4a|flac|ogg|wav)$' "$MUSIC/{}" \
         | sort > "$PLAYLIST"
 
         # Play it
