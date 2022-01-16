@@ -1,0 +1,31 @@
+#!/bin/sh
+# You can use the excellent <github.com/hoyon/mpv-mpris> to add MPRIS support
+# to `mpv`, so that it can be controlled and followed via `dbus`, using such
+# programs as `playerctl`. However, this script controls it purely via `mpv`'s
+# own IPC mechanism.
+# See <https://mpv.io/manual/stable/>.
+
+SOCK="/tmp/mpvsocket"
+MUSIC="$(xdg-user-dir MUSIC)"
+
+case $1 in
+    pause)
+        echo '{"command": ["cycle", "pause"]}' | nc -UN "$SOCK" ;;
+    prev*)
+        echo '{"command": ["playlist-prev"]}' | nc -UN "$SOCK" ;;
+    next)
+        echo '{"command": ["playlist-next"]}' | nc -UN "$SOCK" ;;
+    monitor)
+        echo '{"command": ["observe_property", 1, "metadata"]}' \
+        | nc -U "$SOCK" \
+        | jq ;;
+    list)
+        echo '{"command": ["get_property", "playlist"]}' | nc -UN "$SOCK" \
+        | jq --arg MUSIC $MUSIC/ -r '.data[] | (
+            if .playing then "▶ " elif .current then "⏸ " else "  " end
+            + (.filename | ltrimstr($MUSIC) | rtrimstr(".mp3")))' ;;
+    *)
+        echo "Usage: $(basename $0) <pause|prev|next|monitor|list>" >&2
+        exit 1
+        ;;
+esac
