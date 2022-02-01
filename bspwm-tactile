@@ -1,0 +1,115 @@
+#!/bin/sh
+# After trying a lot of window managers before falling in love with `bspwm`, I
+# realized that I really mostly used it in one of two ways: either I wanted
+# *two* windows side by side or I wanted *one* window in fullscreen. Once I
+# started using tablets, this observation gained importance, as simplicity is
+# key for simultaneously accommodating both keys and touch gestures.
+#
+# Imagine a desktop with a stack of papers. You're only ever working on one
+# paper; at most, you might hold two papers side by side. I suspect that this
+# approach reduces the mental load introduced by the window manager. This
+# script experiments with that in `bspwm`. Assign appropriate shortcuts with
+# [sxhkd](https://github.com/baskerville/sxhkd) and
+# [lisgd](https://git.sr.ht/~mil/lisgd) or
+# [touchegg](https://github.com/JoseExposito/touchegg).
+
+
+init(){
+    trap clean EXIT
+    bspc config external_rules_command $(realpath $0)
+    bspc subscribe desktop_focus node_remove | while read e; do
+        for desktop_id in $(bspc query -D -d '.!occupied'); do
+            bspc desktop "${desktop_id}" --remove || :
+        done
+    done
+}
+
+clean(){
+    echo "Cleaning..." >&2
+    bspc config external_rules_command off
+    bspc node 'any.!window.leaf' --kill
+}
+
+
+opposite(){
+    [ "$1" = "prev" ] && echo next || echo prev
+}
+
+# Move window to previous or next
+# Usage: move (prev|next)
+move(){
+    DIR="$1"
+    bspc desktop --bubble "$DIR"
+    bspc node --swap "@$(opposite $DIR):/"
+}
+
+# Merge the windows of this desktop with those of the next/prev one
+# Usage: merge (next|prev)
+merge(){
+    DIR="$1"
+    if [ "$DIR" = prev ]; then
+        bspc config initial_polarity first_child
+    else
+        bspc config initial_polarity second_child
+    fi
+    bspc node "@$DIR:/" -n "@/"
+    bspc desktop "$DIR" -r
+}
+
+# Make a desktop with a new one-letter name and return the name
+new_desktop(){
+    NAME="$(echo 'fjdkslaeiwovmcxqptybnz' \
+        | tr -d "$(bspc query -D --names)" | head -c1)"
+    bspc monitor -a "$NAME"
+    echo $NAME
+}
+
+
+# Move a desktop relative to another
+# Usage: insert DESKTOP_SEL [before|after] [DESKTOP_SEL]
+insert(){
+    SEL="$(bspc query -D --names -d $1)" || return 1
+    REF="$(bspc query -D --names -d ${3:-focused})" || return 1
+    [ "$SEL" = "$REF" ] && return 0
+    [ "$2" = "before" ] && NEW="$SEL\n$REF" || NEW="$REF\n$SEL"
+    bspc query -D --names | sed "/$SEL/d;s/$REF/$NEW/" | xargs bspc monitor -o
+}
+
+# "Explode" the given desktop, giving each window its own desktop
+# Usage: explode [DESKTOP_SEL]
+explode(){
+    DESKTOP_SEL="$(bspc query -D -d ${1:-focused})"
+    for W in $(bspc query -N -d focused -n '.window.!floating' | tail -n+2); do
+        D="$(new_desktop)"
+        insert "$D" after focused
+        bspc node "$W" -d "$D"
+    done
+}
+
+rule_command(){
+    D="$(new_desktop)"
+    if bspc query -N -n '@/1#focused.descendant_of' > /dev/null; then
+        insert "$D" after focused > /dev/null
+        bspc node "@$D:/" -i
+        bspc node "@/2" --swap "@$D:/"
+        echo node=@/2
+    elif bspc query -N -n '@/2#focused.descendant_of' > /dev/null; then
+        insert "$D" before focused > /dev/null
+        bspc node "@$D:/" -i
+        bspc node "@/1" --swap "@$D:/"
+        echo node=@/1
+    else # assume single window
+        insert "$D" after focused > /dev/null
+        echo desktop=$D follow=on
+    fi
+}
+
+
+# If the argument matches any function we defined, execute it. Otherwise,
+# assume
+if type "$1" > /dev/null; then
+    "$@"
+    exit $?
+elif [ ! -z "$1" ]; then
+    rule_command "$@"
+fi
