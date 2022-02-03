@@ -1,20 +1,24 @@
 #!/bin/sh
+# bspce - bspc extended
+#
 # After trying a lot of window managers before falling in love with `bspwm`, I
 # realized that I really mostly used it in one of two ways: either I wanted
 # *two* windows side by side or I wanted *one* window in fullscreen. Once I
 # started using tablets, this observation gained importance, as simplicity is
 # key for simultaneously accommodating both keys and touch gestures.
 #
-# Imagine a desktop with a stack of papers. You're only ever working on one
-# paper; at most, you might hold two papers side by side. I suspect that this
-# approach reduces the mental load introduced by the window manager. This
-# script experiments with that in `bspwm`. Assign appropriate shortcuts with
-# [sxhkd](https://github.com/baskerville/sxhkd) and
-# [lisgd](https://git.sr.ht/~mil/lisgd) or
-# [touchegg](https://github.com/JoseExposito/touchegg).
+# Imagine a desk with a stack of papers. You're only ever working on one sheet;
+# at most, you might hold two papers side by side. This inspired the following
+# approach, for reducing the mental load. (Description to follow later).
+#
+# Assign appropriate shortcuts with <https://github.com/baskerville/sxhkd> and
+# <https://git.sr.ht/~mil/lisgd>.
+#
+# This is an experiment for `bspwm`. If it works well, it would be nice to make
+# a dedicated Wayland-based WM with better touch support --- hopefully
+# something like `penrose` for Wayland will exist by then.
 
-
-init(){
+initialize(){
     trap clean EXIT
     bspc config external_rules_command $(realpath $0)
     bspc subscribe desktop_focus node_remove | while read e; do
@@ -24,12 +28,22 @@ init(){
     done
 }
 
-clean(){
+finalize(){
     echo "Cleaning..." >&2
     bspc config external_rules_command off
     bspc node 'any.!window.leaf' --kill
 }
 
+# Remove all unused desktops and receptacles
+# Usage: clean
+clean(){
+    for N in $(bspc query -N -n '.!window.leaf'); do
+        bspc node $N --kill
+    done
+    for D in $(bspc query -D -d '.!occupied'); do
+        bspc desktop "$D" --remove || :
+    done
+}
 
 opposite(){
     [ "$1" = "prev" ] && echo next || echo prev
@@ -75,14 +89,24 @@ insert(){
     bspc query -D --names | sed "/$SEL/d;s/$REF/$NEW/" | xargs bspc monitor -o
 }
 
+# Return without error only if the first desktop occurs after the second one in
+# the desktop list
+# Usage: successor DESKTOP_SEL [DESKTOP_SEL]
+successor(){
+    SEL="$(bspc query -D -d $1)" || return 1
+    REF="$(bspc query -D -d ${2:-focused})" || return 1
+    [ "$(bspc query -D | grep -m1 "^$SEL\|^$REF")" = "$SEL" ]
+    return $?
+}
+
 # "Explode" the given desktop, giving each window its own desktop
 # Usage: explode [DESKTOP_SEL]
 explode(){
-    DESKTOP_SEL="$(bspc query -D -d ${1:-focused})"
-    for W in $(bspc query -N -d focused -n '.window.!floating' | tail -n+2); do
-        D="$(new_desktop)"
-        insert "$D" after focused
-        bspc node "$W" -d "$D"
+    D="${1:-focused}"
+    for W in $(bspc query -N -d $D -n '.window.!floating' | tail -n+2); do
+        DW="$(new_desktop)"
+        insert "$DW" after focused
+        bspc node "$W" -d "$DW"
     done
 }
 
@@ -107,7 +131,7 @@ rule_command(){
 
 # If the argument matches any function we defined, execute it. Otherwise,
 # assume
-if type "$1" > /dev/null; then
+if [ "$(type $1)" = "$1 is a shell function" ]; then
     "$@"
     exit $?
 elif [ ! -z "$1" ]; then
