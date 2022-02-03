@@ -57,17 +57,14 @@ move(){
     bspc node --swap "@$(opposite $DIR):/"
 }
 
-# Merge the windows of this desktop with those of the next/prev one
-# Usage: merge (next|prev)
+# Merge the windows of two desktops.
+# Usage: merge DESKTOP_SEL [DESKTOP_SEL]
 merge(){
-    DIR="$1"
-    if [ "$DIR" = prev ]; then
-        bspc config initial_polarity first_child
-    else
-        bspc config initial_polarity second_child
-    fi
-    bspc node "@$DIR:/" -n "@/"
-    bspc desktop "$DIR" -r
+    SEL="$1" REF="${2:-focused}"
+    successor "$REF" "$SEL" && P="first" || P="second"
+    bspc config initial_polarity ${P}_child
+    bspc node "@$SEL:/" -n "@$REF:/"
+    bspc desktop "$SEL" -r
 }
 
 # Make a desktop with a new one-letter name and return the name
