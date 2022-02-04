@@ -60,18 +60,39 @@ move(){
 # Merge the windows of two desktops.
 # Usage: merge DESKTOP_SEL [DESKTOP_SEL]
 merge(){
-    SEL="$1" REF="${2:-focused}"
+    local SEL="$1" REF="${2:-focused}"
     successor "$REF" "$SEL" && P="first" || P="second"
     bspc config initial_polarity ${P}_child
     bspc node "@$SEL:/" -n "@$REF:/"
     bspc desktop "$SEL" -r
 }
 
+# Split the windows of one desktop into two.
+# Usage: split [DESKTOP_SEL]
+split(){
+    local SEL="${1:-focused}"
+    # If we happen to be focused on a window in the second half of the target
+    # desktop, we put the other half in a new desktop
+    if bspc query -N -d "$SEL" -n "@/2#focused.descendant_of"; then
+        local NEW="$(new_desktop)"
+        insert "$NEW" before "$SEL"
+        bspc node "@$SEL:/1" -d "$NEW"
+    # Otherwise, the second half goes to the new desktop
+    elif bspc query -N -d "$SEL" -n "@/1"; then
+        local NEW="$(new_desktop)"
+        insert "$NEW" after "$SEL"
+        bspc node "@$SEL:/2" -d "$NEW"
+    else
+        return 1
+    fi
+}
+
+
 # Make a desktop with a new one-letter name and return the name
 new_desktop(){
     NAME="$(echo 'fjdkslaeiwovmcxqptybnz' \
         | tr -d "$(bspc query -D --names)" | head -c1)"
-    bspc monitor -a "$NAME"
+    bspc monitor -a "$NAME" > /dev/null
     echo $NAME
 }
 
@@ -79,10 +100,10 @@ new_desktop(){
 # Move a desktop relative to another
 # Usage: insert DESKTOP_SEL [before|after] [DESKTOP_SEL]
 insert(){
-    SEL="$(bspc query -D --names -d $1)" || return 1
-    REF="$(bspc query -D --names -d ${3:-focused})" || return 1
+    local SEL="$(bspc query -D --names -d $1)" || return 1
+    local REF="$(bspc query -D --names -d ${3:-focused})" || return 1
     [ "$SEL" = "$REF" ] && return 0
-    [ "$2" = "before" ] && NEW="$SEL\n$REF" || NEW="$REF\n$SEL"
+    [ "$2" = "before" ] && local NEW="$SEL\n$REF" || local NEW="$REF\n$SEL"
     bspc query -D --names | sed "/$SEL/d;s/$REF/$NEW/" | xargs bspc monitor -o
 }
 
