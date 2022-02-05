@@ -34,7 +34,7 @@ finalize(){
     bspc node 'any.!window.leaf' --kill
 }
 
-# Remove all unused desktops and receptacles
+# Remove all unused desktops and receptacles.
 # Usage: clean
 clean(){
     for N in $(bspc query -N -n '.!window.leaf'); do
@@ -49,12 +49,39 @@ opposite(){
     [ "$1" = "prev" ] && echo next || echo prev
 }
 
-# Move window to previous or next
+# Move window to previous or next.
 # Usage: move (prev|next)
 move(){
     DIR="$1"
     bspc desktop --bubble "$DIR"
     bspc node --swap "@$(opposite $DIR):/"
+}
+
+# Combined operation
+# Usage: push (prev|next)
+push(){
+    focus $1 || split || merge1 $1
+}
+
+merge1(){
+    [ "$1" = prev ] && P="first" || P="second"
+    bspc config initial_polarity ${P}_child
+    bspc node "@$1:/" -n "@/"
+    bspc desktop "$1" -r
+}
+
+# Focus on previous or next window, but fail on wrapping
+# You could do something like ''
+# Usage: focus (prev|next)
+focus(){
+    TARGET="$(bspc query -N -n "$1.local.window")"
+    [ "$1" = next ] \
+        && [ "$TARGET" = "$(bspc query -N -n '.local.window' | head -n1)" ] \
+        && return 1
+    [ "$1" = prev ] \
+        && [ "$TARGET" = "$(bspc query -N -n '.local.window' | tail -n1)" ] \
+        && return 1
+    bspc node "$TARGET" --focus
 }
 
 # Merge the windows of two desktops.
@@ -87,8 +114,7 @@ split(){
     fi
 }
 
-
-# Make a desktop with a new one-letter name and return the name
+# Make a desktop with a new one-letter name and return the name.
 new_desktop(){
     NAME="$(echo 'fjdkslaeiwovmcxqptybnz' \
         | tr -d "$(bspc query -D --names)" | head -c1)"
@@ -96,8 +122,7 @@ new_desktop(){
     echo $NAME
 }
 
-
-# Move a desktop relative to another
+# Move a desktop relative to another.
 # Usage: insert DESKTOP_SEL [before|after] [DESKTOP_SEL]
 insert(){
     local SEL="$(bspc query -D --names -d $1)" || return 1
@@ -107,8 +132,7 @@ insert(){
     bspc query -D --names | sed "/$SEL/d;s/$REF/$NEW/" | xargs bspc monitor -o
 }
 
-# Return without error only if the first desktop occurs after the second one in
-# the desktop list
+# Succeeds only if the 1st desktop occurs after the 2nd in the desktop list.
 # Usage: successor DESKTOP_SEL [DESKTOP_SEL]
 successor(){
     SEL="$(bspc query -D -d $1)" || return 1
@@ -117,19 +141,19 @@ successor(){
     return $?
 }
 
-# "Explode" the given desktop, giving each window its own desktop
+# "Explode" the given desktop, giving each tiled window its own desktop.
 # Usage: explode [DESKTOP_SEL]
 explode(){
-    D="${1:-focused}"
+    local D="${1:-focused}"
     for W in $(bspc query -N -d $D -n '.window.!floating' | tail -n+2); do
-        DW="$(new_desktop)"
+        local DW="$(new_desktop)"
         insert "$DW" after focused
         bspc node "$W" -d "$DW"
     done
 }
 
 rule_command(){
-    D="$(new_desktop)"
+    local D="$(new_desktop)"
     if bspc query -N -n '@/1#focused.descendant_of' > /dev/null; then
         insert "$D" after focused > /dev/null
         bspc node "@$D:/" -i
