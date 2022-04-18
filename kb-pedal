@@ -1,0 +1,48 @@
+#!/usr/bin/env python3
+# Use the pedals from the old racing wheel I used as a child to send keyboard
+# events
+# https://python-evdev.readthedocs.io/en/latest/apidoc.html
+
+import evdev  # type: ignore
+from evdev import UInput, ecodes
+import re
+
+
+def main():
+    device = next(
+        d for n in evdev.list_devices()
+        if re.search("Racing Wheel", (d := evdev.InputDevice(n)).name)
+    )
+    rshift = False
+    lshift = False
+    with UInput() as ui:
+        for event in device.read_loop():
+            if event.type == ecodes.EV_ABS:
+                if event.code == 5:
+                    if event.value < 10:
+                        if not lshift:
+                            ui.write(ecodes.EV_KEY, ecodes.KEY_LEFTSHIFT, 1)
+                            print('lshift down')
+                        lshift = True
+                    else:
+                        if lshift:
+                            ui.write(ecodes.EV_KEY, ecodes.KEY_LEFTSHIFT, 0)
+                            print('lshift up')
+                        lshift = False
+                    ui.syn()
+                elif event.code == 1:
+                    if event.value < 10:
+                        if not rshift:
+                            ui.write(ecodes.EV_KEY, ecodes.KEY_RIGHTSHIFT, 1)
+                            print('rshift down')
+                        rshift = True
+                    else:
+                        if rshift:
+                            ui.write(ecodes.EV_KEY, ecodes.KEY_RIGHTSHIFT, 0)
+                            print('rshift up')
+                        rshift = False
+                    ui.syn()
+
+
+if __name__ == "__main__":
+    main()
