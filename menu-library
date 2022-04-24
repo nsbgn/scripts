@@ -1,6 +1,0 @@
-#!/bin/sh
-
-fdfind . --base-directory $HOME/library books reference papers \
-| shuf \
-| fzf --exact \
-| xargs --no-run-if-empty -I{} "$HOME/.config/lf/open.sh" "$HOME/library/"{}

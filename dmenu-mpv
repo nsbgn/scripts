@@ -1,0 +1,39 @@
+#!/bin/sh
+# The only thing I ever do with my music player is listen to albums, preferably
+# from start to finish. I was frustrated with most music player interfaces as
+# they were sluggish and hard to subject to my will. This script simply
+# presents the user with a shuffled list of albums to play, then gets out of
+# the way.
+#
+# Note that you can use the excellent <github.com/hoyon/mpv-mpris> to add MPRIS
+# support to `mpv`, so that it can be controlled with `playerctl` instead of
+# mpv's own <https://mpv.io/manual/stable/#json-ipc>.
+#
+# Dependencies:
+#   (Debian) bemenu mpv netcat-netbsd xdg-dirs fd-find shuf sort
+
+DMENU="bemenu -i --no-exec"
+FD="$(which fdfind || which fd)"
+MUSIC="$(xdg-user-dir MUSIC)"
+SOCK="/tmp/mpvsocket"
+PLAYLIST="/tmp/mpvplaylist"
+
+# Test if an instance of mpv is already listening; if not, start one
+if ! test -S "$SOCK" || ! nc -Uz "$SOCK" 2>/dev/null; then
+    mpv --idle --no-terminal --no-audio-display --input-ipc-server="$SOCK" &
+fi
+
+# Query for album to play, and make corresponding playlist
+$FD . --base-directory "$MUSIC" --type d --min-depth 2 \
+| shuf \
+| $DMENU \
+| xargs -I{} $FD '.(mp3|webm|m4a|flac|ogg|wav)$' "$MUSIC/{}" \
+| sort > "$PLAYLIST"
+
+# Play it
+if [ -s "$PLAYLIST" ]; then
+    echo '
+    {"command":["loadlist","'$PLAYLIST'","replace"]}
+    {"command":["set","pause","no"]}' | nc -UN "$SOCK"
+fi
+

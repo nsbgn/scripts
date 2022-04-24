@@ -1,18 +1,21 @@
 #!/bin/sh
-# A simple dmenu interface to the password manager `pass`. Selects a password,
-# then types it using xdotool.
+# A simple dmenu interface to the password manager `pass`.
+# Dependencies: (Debian) bemenu pass coreutils findutils sed wtype xdotool
 
-[ -z $PASSWORD_STORE_DIR ] && PASSWORD_STORE_DIR="$HOME/.password-store"
+if [ -z $PASSWORD_STORE_DIR ]; then
+    PASSWORD_STORE_DIR="$HOME/.password-store"
+fi
 
-if [ -z "$WAYLAND_DISPLAY" ]; then
-    TYPE="xdotool type --clearmodifiers --file -"
+DMENU="bemenu -i --no-exec"
+if [ ! -z "$WAYLAND_DISPLAY" ]; then
+    TYPIST="wtype -"
 else
-    TYPE="wtype -"
+    TYPIST="xdotool type --clearmodifiers --file -"
 fi
 
 find $PASSWORD_STORE_DIR/ -iname '*.gpg' \
-    | sed "s|^$PASSWORD_STORE_DIR/\(.*\).gpg|\1|" \
-    | sort \
-    | bemenu -i --no-exec \
-    | xargs --no-run-if-empty pass show \
-    | $TYPE
+| sed "s|^$PASSWORD_STORE_DIR/\(.*\).gpg|\1|" \
+| sort \
+| $DMENU \
+| xargs --no-run-if-empty pass show \
+| $TYPIST

@@ -1,11 +1,11 @@
-#!/bin/bash
+#!/bin/sh
 # Menu that just keeps presenting synonyms until you can find the word that was
 # at the tip of your tongue
 
 while
     NEXT_WORD="$(\
         echo -n "$NEXT_WORD" | \
-        dmenu -p "" $DMENU_ARGS | \
+        bemenu -i --no-exec -p "Thesaurus" $DMENU_ARGS | \
         xargs --no-run-if-empty thesaurus)"
     test "$NEXT_WORD"
 do 

@@ -1,0 +1,7 @@
+#!/bin/sh
+
+FD="$(which fdfind || which fd)"
+DMENU="bemenu -i --no-exec"
+
+$FD . --base-directory $HOME/library books reference papers \
+| shuf | $DMENU | xargs --no-run-if-empty -I{} mupdf "$HOME/library/"{}
