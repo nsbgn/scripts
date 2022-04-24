@@ -1,13 +1,15 @@
 #!/bin/sh
-# Menu that just keeps presenting synonyms until you can find the word that was
-# at the tip of your tongue
+# Keep presenting synonyms in a dmenu by querying freethesaurus.com
+# Dependencies: bemenu htmlq findutils coreutils
 
+DMENU="bemenu -i --no-exec"
 while
-    NEXT_WORD="$(\
-        echo -n "$NEXT_WORD" | \
-        bemenu -i --no-exec -p "Thesaurus" $DMENU_ARGS | \
-        xargs --no-run-if-empty thesaurus)"
-    test "$NEXT_WORD"
-do 
-    :
+    NEXT="$(echo -n "$NEXT" \
+        | $DMENU \
+        | tr ' ' '+' \
+        | xargs -r -I{} curl --silent https://www.freethesaurus.com/{} \
+        | htmlq --text 'a.tw' \
+        | uniq)"
+    test "$NEXT"
+do :
 done
