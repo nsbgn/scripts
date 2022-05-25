@@ -1,0 +1,60 @@
+#!/bin/sh
+# A bspwm taskbar that shows each window of the current desktop, for use with
+# polybar or lemonbar. Each window gets assigned a one-symbol label, which you
+# can use to jump to it.
+
+program="$(realpath $0)"
+labels="HJKLYUIOPNM"
+
+# Foreground & background for focused & unfocused windows
+ff="#ffffff"
+bf="#302925"
+fu="#302925"
+bu="#e9e2d2"
+
+title(){
+    xdotool getwindowname $1 | awk -v len=40 '{ if (length($0) > len) print substr($0, 1, len-3) "…"; else print; }'
+}
+
+# Produce statusline at current moment
+statusline(){
+    # Current / max desktops
+    echo -n "%{R} $(bspc query -D | grep -n $(bspc query -D -d) | cut -f1 -d:)"
+    echo -n "$(bspc query -D | wc -l) %{F-}%{B-}"
+
+    # 
+    i=1
+    for win in $(bspc query -N -n '.local.window'); do
+        local shortcut="$(echo $labels | cut -c$i)"
+        local title="$(title $win)"
+        local icon=""
+
+        echo -n "%{F-}%{B-}  $shortcut "
+        echo -n "%{A1:bspc node $win --flag hidden:}"
+
+        if bspc query -N -n $win.hidden > /dev/null; then
+            echo -n "%{F$bf}$icon$title"
+        elif bspc query -N -n $win.focused > /dev/null; then
+            echo -n "%{F$bf}%{F$ff}%{B$bf}$icon$title%{B-}%{F$bf}"
+        else
+            echo -n "%{F$bu}%{F$fu}%{B$bu}$icon$title%{B-}%{F$bu}"
+        fi
+
+        echo -n "%{A1}"
+        i=$((i+1))
+    done
+    echo
+}
+
+# If an argument was provided, assume it was a function we want to execute
+if [ ! -z "$1" ]; then
+    "$@"
+    exit $?
+# Otherwise, assume we are monitoring to produce a statusline
+else
+    bspc subscribe report | while read line; do
+        statusline
+    done | lemonbar \
+        -f "-*-cozette-medium-r-*--13-*" \
+        -B '#ffffff' -F '#000000' | sh
+fi
