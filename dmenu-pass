@@ -1,12 +1,12 @@
 #!/bin/sh
 # A simple dmenu interface to the password manager `pass`.
-# Dependencies: (Debian) bemenu pass coreutils findutils sed wtype xdotool
+# Dependencies: (Debian) pass coreutils findutils sed wtype xdotool
+# You can use dmenu or symlink bemenu or rofi to dmenu
 
 if [ -z $PASSWORD_STORE_DIR ]; then
     PASSWORD_STORE_DIR="$HOME/.password-store"
 fi
 
-DMENU="bemenu -i --no-exec"
 if [ ! -z "$WAYLAND_DISPLAY" ]; then
     TYPIST="wtype -"
 else
@@ -16,6 +16,6 @@ fi
 find $PASSWORD_STORE_DIR/ -iname '*.gpg' \
 | sed "s|^$PASSWORD_STORE_DIR/\(.*\).gpg|\1|" \
 | sort \
-| $DMENU \
+| dmenu -p Password -i $DMENU_OPTS \
 | xargs --no-run-if-empty pass show \
-| $TYPIST
+| xargs $TYPIST

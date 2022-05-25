@@ -12,8 +12,8 @@ def desc(app):
 
 
 p = subprocess.Popen(
-    ["dmenu", "-i"], universal_newlines=True,
-    stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    ["dmenu", "-p", "Applications", "-i", "-fn", "Inconsolata-14", "-l", "20"],
+    universal_newlines=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
 
 assert p.stdin and p.stdout
 
@@ -23,7 +23,8 @@ with p.stdin:
 
 if p.wait() == 0:
     selection = p.stdout.read()
-    for app in Gio.AppInfo.get_all():
-        if selection == desc(app):
-            app.launch()
-            break
+    if selection.strip():
+        for app in Gio.AppInfo.get_all():
+            if selection == desc(app):
+                app.launch()
+                break

@@ -1,6 +1,6 @@
 #!/bin/sh
-# Returns the current working directory of the focused terminal window. Works
-# for urxvtc and takes into account foreground process.
+# Returns the current working directory of the focused terminal window. Only
+# for X11. Works for urxvtc and takes into account foreground process.
 # Inspired by:
 # - https://github.com/wknapik/lastcwd
 # - https://gist.github.com/viking/5851049
