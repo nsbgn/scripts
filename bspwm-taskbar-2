@@ -4,13 +4,20 @@
 # can use to jump to it.
 
 program="$(realpath $0)"
-labels="IOMNUPY"
 
 # Foreground & background for focused & unfocused windows
 ff="#ffffff"
 bf="#302925"
 fu="#302925"
 bu="#e9e2d2"
+
+icon(){
+    case $(xprop -id $1 WM_CLASS | cut -d'"' -f4) in
+        Firefox-esr) echo " " ;;
+        URxvt) echo " " ;;
+        TelegramDesktop) echo " " ;;
+    esac
+}
 
 title(){
     xdotool getwindowname $1 | awk -v len=40 '{ if (length($0) > len) print "…" substr($0, length($0)-len+1, length($0)); else print; }'
@@ -22,22 +29,19 @@ statusline(){
     echo -n "%{R} $(bspc query -D | grep -n $(bspc query -D -d) | cut -f1 -d:)"
     echo -n "/$(bspc query -D | wc -l) %{F-}%{B-}"
 
-    # 
     i=1
-    for win in $(bspc query -N -n '.local.window'); do
-        local shortcut="$(echo $labels | cut -c$i)"
+    for win in $(bspc query -N -n '.window'); do
         local title="$(title $win)"
-        local icon=""
+        local icon="$(icon $win)"
 
-        echo -n "%{F-}%{B-} %{T3} $shortcut%{T} "
-        echo -n "%{A1:bspc node $win --flag hidden:}"
+        echo -n "%{A1:bspc node $win --focus:}"
 
-        if bspc query -N -n $win.hidden > /dev/null; then
-            echo -n "%{F$bf}$icon$title"
+        if bspc query -N -n "$win.!local" > /dev/null; then
+            echo -n " %{F$bf}$icon$title"
         elif bspc query -N -n $win.focused > /dev/null; then
-            echo -n "%{F$bf}%{F$ff}%{B$bf}$icon$title%{B-}%{F$bf}"
+            echo -n " %{F$bf}%{F$ff}%{B$bf}$icon$title%{B-}%{F$bf}"
         else
-            echo -n "%{F$bu}%{F$fu}%{B$bu}$icon$title%{B-}%{F$bu}"
+            echo -n " %{F$bu}%{F$fu}%{B$bu}$icon$title%{B-}%{F$bu}"
         fi
 
         echo -n "%{A1}"
