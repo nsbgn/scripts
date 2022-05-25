@@ -18,7 +18,6 @@
 # playlist
 # TODO: Preview is just this program again, but shows list with currently
 # playing
-# TODO: Monitor
 
 FD="$(which fdfind || which fd)"
 MUSIC="$(xdg-user-dir MUSIC)"
@@ -38,9 +37,11 @@ case $1 in
     next)
         echo '{"command": ["playlist-next"]}' | nc -UN "$SOCK" ;;
     monitor)
-        echo '{"command": ["observe_property", 1, "metadata"]}' \
-        | nc -U "$SOCK" \
-        | jq
+        nc -U "$SOCK" | jq --unbuffered -r '
+        if (.event|inside("unpause","reload-file","playback-restart")) then "▶"
+        elif .event == "pause" then "⏸"
+        elif .event == "end-file" then ""
+        else empty end'
         ;;
     list)
         echo '{"command": ["get_property", "playlist"]}' | nc -UN "$SOCK" \
@@ -51,8 +52,8 @@ case $1 in
         # Query for album to play, and make corresponding playlist
         $FD . --base-directory "$MUSIC" --type d --min-depth 2 \
         | shuf \
-        | fzf --exact --preview "ls \"$MUSIC\"/{}" \
-        | xargs -I{} $FD '.(mp3|webm|m4a|flac|ogg|wav)$' "$MUSIC/{}" \
+        | fzf --print0 --exact --preview "ls \"$MUSIC\"/{}" \
+        | xargs -0 -I{} $FD '.(mp3|webm|m4a|flac|ogg|wav)$' "$MUSIC/{}" \
         | sort > "$PLAYLIST"
 
         # Play it
