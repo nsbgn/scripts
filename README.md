@@ -1,14 +1,13 @@
 Scripts
 ===============================================================================
 
-Here you will find nifty scripts I wrote to make my life easier. 
+Here you will find nifty scripts I wrote to make my life easier. The main 
+repository is at [github](https://github.com/slakkenhuis/scripts).
 
 Most of them are pretty messy and only intended for personal use, but I did 
 try to make them small and easy to change, so have a look around and do with 
-them as you please. I'm fond of using 
-[dmenu](http://tools.suckless.org/dmenu/) / 
-[rofi](https://github.com/DaveDavenport/rofi) and 
-[jq](https://stedolan.github.io/jq/), because they make quick DIY scripts 
+them as you please. I'm fond of using [dmenu](http://tools.suckless.org/dmenu/) 
+and [jq](https://stedolan.github.io/jq/), because they make quick DIY scripts 
 easy.
 
 Currently, the repository contains the following tools:
@@ -18,18 +17,19 @@ Currently, the repository contains the following tools:
 - [dmenu-pass](dmenu-pass): An interface to 
   [pass](http://www.zx2c4.com/projects/password-store/), as a password 
   manager.
-- [dmenu-cheatsheet](dmenu-cheatsheet): Quick reminders of keyboard shortcuts 
-  and commands.
+- [dmenu-thesaurus](dmenu-thesaurus): Present a list of related words by 
+  quickly parsing [freethesaurus.com](https://freethesaurus.com) with 
+  [htmlq](https://github.com/mgdm/htmlq).
 - [xcwd.sh](xcwd.sh): an alternative to 
   [xcwd](https://github.com/schischi/xcwd), 
   [lastcwd](https://github.com/wknapik/lastcwd) and
   [i3-shell](https://gist.github.com/viking/5851049#file-i3-shell-sh) that 
-  returns the working directory of the currently active terminal window.
+  returns the working directory of the currently active terminal window, even 
+  for urxvt.
 - [toggle-pointer](toggle-pointer): A script to disable and re-enable the 
   mouse pointer.
 - [download-article](download-article) downloads an internet article to a 
   Markdown file.
-- [thesaurus](thesaurus): Presents a list of related words.
 - [crsync](crsync): A script to keep my files synchronised across my devices 
   (ereader, music player, external harddisk, etcetera), by running 
   [rsync](https://rsync.samba.org/) on a YAML configuration.
@@ -47,4 +47,5 @@ Currently, the repository contains the following tools:
 
 ### Notices
 
-- `keyboard-config` has been reworked into [thumbledore](https://github.com/slakkenhuis/thumbledore)
+- `keyboard-config` has been reworked into 
+  [thumbledore](https://github.com/slakkenhuis/thumbledore)
