@@ -1,6 +1,8 @@
 #!/bin/bash
 # Utility for making quick scans for documents, all pages combined into a
-# single OCR'ed PDF. Also check out tiff2pdf.
+# single OCR'ed PDF. Also check out tiff2pdf and pdfsandwich
+
+# TODO djvu
 set -euo pipefail
 
 DPI=150
@@ -41,7 +43,7 @@ while true; do
         echo "Scan failed." >&2
     fi
 
-    read -r -p "Continue scanning? [Y/n]" confirm
+    read -r -p "Add another page? [Y/n]" confirm
     case $confirm in
         [nN]*) break ;;
         *) continue ;;

@@ -20,7 +20,7 @@ icon(){
 }
 
 title(){
-    xdotool getwindowname $1 | awk -v len=40 '{ if (length($0) > len) print "…" substr($0, length($0)-len+1, length($0)); else print; }'
+    xdotool getwindowname $1 | awk -v len=40 '{ sub(/— Mozilla Firefox$/, "", $0); if (length($0) > len) print "…" substr($0, length($0)-len+1, length($0)); else print; }'
 }
 
 # Produce statusline at current moment

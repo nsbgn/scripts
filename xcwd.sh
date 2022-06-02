@@ -6,5 +6,7 @@
 # - https://gist.github.com/viking/5851049
 
 readlink /proc/$(ps e -o tpgid=,tty=,args= \
-    | awk -F' ' '$2~/pts/ && /WINDOWID='$(xdotool getactivewindow)'\s/ {print $1}' \
+    | awk -F' ' '$2~/pts/ && /WINDOWID='$(xdotool getactivewindow)'/ {print $1}' \
     | head -n1)/cwd || echo $HOME
+
+# readlink /proc/$(xdotool getactivewindow getwindowpid)/cwd || echo $HOME
